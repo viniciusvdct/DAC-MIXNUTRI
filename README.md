@@ -105,8 +105,8 @@ Para integrar:
 | --- | --- |
 | **Item 1:** circuito no Wokwi e script SQL | Pronto (versão 2), testado no Wokwi e no PostgreSQL |
 | **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens. Cliente Modbus testado por rede contra o simulador |
-| **Item 3:** kit de integração | Proposta da equipe 1 para a equipe 2 avaliar; testado com as mensagens reais do item 2. Tem ponte opcional para receber o firmware do Wokwi ao vivo |
-| **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3 |
+| **Item 3:** kit de integração | Proposta da equipe 1 para a equipe 2 avaliar. Testado ao vivo com o firmware rodando no Wokwi, por uma ponte com o broker público |
+| **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3. O roteiro do item 5 (UR alta → relé → parada → alerta no Grafana) já roda em simulação com o kit da equipe 1 |
 | **Montagem física** | Componentes e ligações definidos, iguais aos do Wokwi; ainda não montada |
 
 ## Limites

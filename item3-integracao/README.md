@@ -68,10 +68,10 @@ Testado em 28/10/2026 com as mensagens do item 2:
 - Paradas fechadas no retorno da máquina e no reinício do ESP32.
 - Testes passando: SQL 8/8, ACL 5/5 e Admin 14/14. O Grafana respondeu às 9 consultas com dados.
 - Modbus testado com o simulador, incluindo parada do CLP e perda de comunicação.
+- **Ponta a ponta ao vivo (28/10/2026):** firmware no Wokwi → broker público → ponte → este kit. Todas as 40 telemetrias foram gravadas, sem lacuna. Contexto, configuração v8, MANUAL e AUTO, enviados pelo Admin, foram aceitos pelo ESP32. O roteiro do item 5 gerou UR alta, relé ligado, parada com produto e lote e os alertas `UR_ALTA`, `PARADA_MAQUINA` e `UR_ALTA_E_PARADA`. O fim da conexão gerou `DISPOSITIVO_OFFLINE`, tudo visível no Grafana.
 
 **Ainda não testado:**
 
-- Firmware ao vivo pela ponte: a configuração da ponte foi conferida, mas o teste ponta a ponta não rodou porque a rede usada bloqueava a porta 1883.
 - ESP32 físico ligado a este broker.
 - Envio de alertas por Telegram ou e-mail.
 

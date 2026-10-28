@@ -22,35 +22,35 @@ Somos a **equipe 1, responsável pelo circuito eletrônico e pela programação 
 
 ## Hardware do MVP
 
-Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32-S3 comum e módulos prontos**, sem placa de circuito própria e sem solda. Tudo na protoboard, alimentado pelo USB.
+Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo na protoboard, alimentado pelo USB. É a mesma placa e são os mesmos pinos da simulação, então o firmware do Wokwi grava direto, sem alteração.
 
 | Qtd. | Componente | Para quê |
 | --- | --- | --- |
-| 1 | Placa **ESP32-S3** de desenvolvimento (ex.: ESP32-S3-DevKitC-1, USB-C) | Cérebro do kit: lê sensores, controla o relé, Wi-Fi |
+| 1 | Placa **ESP32 DevKit V1** (ESP32-WROOM-32, 4 MB) | Cérebro do kit: lê sensores, controla o relé, Wi-Fi. Já tem o LED azul usado como indicador de rede |
 | 1 | Módulo **SHT31** (I²C, 3,3 V, endereço 0x44) | Temperatura e umidade. Os módulos prontos já trazem os resistores de pull-up |
 | 1 | Módulo de microfone **MAX9814** (saída analógica) | Nível de ruído da máquina |
 | 1 | Módulo **relé 1 canal** 5 V, **ativo em HIGH**, que aceite sinal de 3,3 V | Liga o desumidificador. Se o módulo for ativo em LOW, basta inverter `RELE_ON`/`RELE_OFF` no `sketch.ino` |
-| 2 | LED + resistor de 330 Ω | Carga de demonstração no relé e indicador de rede |
-| — | Protoboard, jumpers, cabo USB-C **de dados** e fonte USB 5 V | Montagem, gravação e alimentação |
+| 1 | LED + resistor de 330 Ω | Carga de demonstração ligada pelo relé |
+| — | Protoboard, jumpers, cabo micro-USB **de dados** e fonte USB 5 V | Montagem, gravação e alimentação |
 
-Ligações sugeridas na ESP32-S3:
+Ligações (iguais às do Wokwi):
 
-| Módulo | Pino do módulo | Pino da ESP32-S3 |
+| Módulo | Pino do módulo | Pino do ESP32 |
 | --- | --- | --- |
 | SHT31 | VCC / GND | 3V3 / GND |
-| SHT31 | SDA / SCL | GPIO 8 / GPIO 9 |
+| SHT31 | SDA / SCL | GPIO 21 / GPIO 22 |
 | MAX9814 | VDD / GND | 3V3 / GND |
-| MAX9814 | OUT | GPIO 4 (ADC1, funciona junto com o Wi-Fi) |
-| Relé | VCC / GND | 5V / GND |
-| Relé | IN | GPIO 5 |
-| LED de rede | anodo, com resistor de 330 Ω | GPIO 6 |
+| MAX9814 | OUT | GPIO 34 (entrada analógica, funciona junto com o Wi-Fi) |
+| Relé | VCC / GND | VIN (5 V do USB) / GND |
+| Relé | IN | GPIO 26 |
+| LED de rede | — | GPIO 2, LED azul da própria placa |
 | LED de carga | nos contatos COM/NO do relé, com resistor | 3V3 → COM, NO → resistor → LED → GND |
 
 Além do kit, só é preciso uma rede Wi-Fi de **2,4 GHz** e o servidor MQTT das outras equipes. Não há cartão SD nem Ethernet: a fila de mensagens fica na Flash interna do ESP32.
 
 Na demonstração, o relé aciona apenas o LED. Ligar um desumidificador de verdade envolve rede elétrica: precisa de alguém habilitado, e o relé tem de ser escolhido conforme a potência do aparelho.
 
-**Sobre a simulação:** o Wokwi ainda usa a placa ESP32 clássica (DevKit V1), com outros pinos (SDA 21, SCL 22, som 34, relé 26, LED 2). Para gravar na ESP32-S3, basta trocar as constantes de pino no início do `sketch.ino` pelos valores da tabela acima e compilar para a placa `esp32-s3-devkitc-1`. Essa versão para S3 **ainda não foi compilada nem testada**. No Wokwi, o SHT31 é um modelo parcial e o som é um sinal sintético: servem para testar a lógica, não substituem os sensores reais. A pinagem do circuito simulado está na [documentação do circuito](MixNutri/06%20Entregas/Item%201/Pinagem%20e%20componentes%20do%20item%201.md).
+**Sobre a simulação:** no Wokwi, o SHT31 é um modelo parcial e o som é um sinal sintético. Servem para testar a lógica, mas não substituem os sensores reais, que ainda precisam ser testados na bancada. A pinagem completa está na [documentação do circuito](MixNutri/06%20Entregas/Item%201/Pinagem%20e%20componentes%20do%20item%201.md).
 
 ## Como nossa parte conversa com as outras equipes
 
@@ -101,7 +101,7 @@ No Wokwi, o MQTT usa o broker público `broker.hivemq.com`, só para demonstraç
 | **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens | [Wokwi](https://wokwi.com/projects/479080199406642177) · [pasta](MixNutri/06%20Entregas/Item%202) |
 | **Item 3:** ambiente de integração | Proposta da equipe 1 para a equipe 2 avaliar | [pasta](MixNutri/06%20Entregas/Item%203%20%28proposta%29) |
 | **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3 | — |
-| **Montagem física (ESP32-S3)** | Lista de componentes e pinagem definidas; ainda não montada | Seção "Hardware do MVP" |
+| **Montagem física** | Lista de componentes e ligações definidas, iguais às do Wokwi; ainda não montada | Seção "Hardware do MVP" |
 
 ## Para as outras equipes
 

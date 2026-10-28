@@ -1,0 +1,15 @@
+# Obsidian e macOS
+.obsidian/
+.DS_Store
+.trash/
+
+# Credenciais locais (publicar apenas modelos .env.exemplo)
+.env
+_env
+
+# Pacotes gerados localmente (o conteudo ja esta nas pastas)
+*.zip
+
+# Saidas de compilacao (PlatformIO / Wokwi CLI)
+.pio/
+*.chip.wasm

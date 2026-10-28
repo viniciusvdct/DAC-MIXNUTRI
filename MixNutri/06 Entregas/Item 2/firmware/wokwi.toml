@@ -1,0 +1,17 @@
+# Wokwi CLI e Wokwi for VS Code. Antes de rodar:
+#   pio run                                   (gera .pio/build/esp32dev/firmware.bin/.elf)
+#   wokwi-cli chip compile sht31.chip.c -o sht31.chip.wasm
+#   wokwi-cli chip compile som.chip.c -o som.chip.wasm
+# O .chip.json de cada chip deve ficar ao lado do .wasm com o mesmo nome base.
+[wokwi]
+version = 1
+firmware = '.pio/build/esp32dev/firmware.bin'
+elf = '.pio/build/esp32dev/firmware.elf'
+
+[[chip]]
+name = 'sht31'
+binary = 'sht31.chip.wasm'
+
+[[chip]]
+name = 'som'
+binary = 'som.chip.wasm'

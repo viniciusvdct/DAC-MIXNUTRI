@@ -1,0 +1,35 @@
+{
+  "name": "Som sintetico - sinal analogico",
+  "author": "Equipe 1 - prototipo assistido por IA",
+  "pins": [
+    "VCC",
+    "GND",
+    "OUT"
+  ],
+  "controls": [
+    {
+      "id": "amplitudePercent",
+      "label": "Tom da maquina (%) - nao dB SPL",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "id": "ruidoFundoPercent",
+      "label": "Ruido de fundo (%)",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "id": "online",
+      "label": "Sensor conectado (0=desconectado)",
+      "type": "range",
+      "min": 0,
+      "max": 1,
+      "step": 1
+    }
+  ]
+}

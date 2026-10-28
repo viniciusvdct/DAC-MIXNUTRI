@@ -1,0 +1,32 @@
+# Cenario automatico do Wokwi CLI:  wokwi-cli --scenario testes-wokwi/item1.test.yaml --timeout 60000
+# NAO EXECUTADO nesta sessao (exige WOKWI_CLI_TOKEN e firmware compilado). set-control com chips
+# customizados precisa ser confirmado. Passos equivalentes foram executados no Wokwi web.
+name: 'MixNutri item 1 - diagnostico do circuito'
+version: 1
+author: 'Equipe 1'
+steps:
+  - wait-serial: 'clima=VALIDO T=25.00C UR=45.00%'
+  - write-serial: '1'
+  - wait-serial: 'rele=ON modo=MANUAL_DIAG'
+  - expect-pin:
+      part-id: esp
+      name: D26
+      value: 1
+  - write-serial: '0'
+  - wait-serial: 'rele=OFF modo=MANUAL_DIAG'
+  - expect-pin:
+      part-id: esp
+      name: D26
+      value: 0
+  - write-serial: 'a'
+  - set-control:
+      part-id: clima
+      name: humidityPercent
+      value: 60
+  - wait-serial: 'UR=60.00%'
+  - wait-serial: 'rele=ON modo=AUTO_DEMO'
+  - set-control:
+      part-id: clima
+      name: humidityPercent
+      value: 49
+  - wait-serial: 'rele=OFF modo=AUTO_DEMO'

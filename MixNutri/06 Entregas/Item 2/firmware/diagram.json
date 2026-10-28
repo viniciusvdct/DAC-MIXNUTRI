@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "author": "Equipe 1",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 100,
+      "left": -10,
+      "attrs": {}
+    },
+    {
+      "type": "chip-sht31",
+      "id": "clima",
+      "top": -100,
+      "left": -240,
+      "attrs": {
+        "temperatureC": "25",
+        "humidityPercent": "45",
+        "online": "1",
+        "crcFault": "0"
+      }
+    },
+    {
+      "type": "chip-som",
+      "id": "som",
+      "top": -100,
+      "left": 100,
+      "attrs": {
+        "amplitudePercent": "80",
+        "ruidoFundoPercent": "5",
+        "online": "1"
+      }
+    },
+    {
+      "type": "wokwi-relay-module",
+      "id": "rele",
+      "top": 130,
+      "left": 240,
+      "attrs": {
+        "transistor": "npn"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led",
+      "top": 320,
+      "left": 310,
+      "attrs": {
+        "color": "green",
+        "label": "DESUMIDIFICADOR SIMULADO"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rled",
+      "top": 260,
+      "left": 320,
+      "rotate": 90,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rsda",
+      "top": -15,
+      "left": -270,
+      "rotate": 90,
+      "attrs": {
+        "value": "4700"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rscl",
+      "top": -15,
+      "left": -180,
+      "rotate": 90,
+      "attrs": {
+        "value": "4700"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "aviso",
+      "top": -230,
+      "left": -230,
+      "attrs": {
+        "text": "ITEM 2 - FIRMWARE (mesmo circuito do item 1)\nSHT31 parcial I2C / Som sintetico em dBFS, nao dB SPL\nLED azul D2 = rede; LED verde = carga do rele"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX0",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX0",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "esp:3V3",
+      "clima:VCC",
+      "red",
+      []
+    ],
+    [
+      "esp:GND.1",
+      "clima:GND",
+      "black",
+      []
+    ],
+    [
+      "esp:D21",
+      "clima:SDA",
+      "green",
+      []
+    ],
+    [
+      "esp:D22",
+      "clima:SCL",
+      "blue",
+      []
+    ],
+    [
+      "esp:3V3",
+      "rsda:1",
+      "red",
+      []
+    ],
+    [
+      "rsda:2",
+      "clima:SDA",
+      "green",
+      []
+    ],
+    [
+      "esp:3V3",
+      "rscl:1",
+      "red",
+      []
+    ],
+    [
+      "rscl:2",
+      "clima:SCL",
+      "blue",
+      []
+    ],
+    [
+      "esp:3V3",
+      "som:VCC",
+      "red",
+      []
+    ],
+    [
+      "esp:GND.1",
+      "som:GND",
+      "black",
+      []
+    ],
+    [
+      "som:OUT",
+      "esp:D34",
+      "orange",
+      []
+    ],
+    [
+      "esp:VIN",
+      "rele:VCC",
+      "red",
+      []
+    ],
+    [
+      "esp:GND.1",
+      "rele:GND",
+      "black",
+      []
+    ],
+    [
+      "esp:D26",
+      "rele:IN",
+      "purple",
+      []
+    ],
+    [
+      "esp:3V3",
+      "rele:COM",
+      "red",
+      []
+    ],
+    [
+      "rele:NO",
+      "rled:1",
+      "green",
+      []
+    ],
+    [
+      "rled:2",
+      "led:A",
+      "green",
+      []
+    ],
+    [
+      "led:C",
+      "esp:GND.1",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}

@@ -1,0 +1,6 @@
+{
+    "mqtt_local": {
+        "user": "${MQTT_BACKEND_USUARIO}",
+        "password": "${MQTT_BACKEND_SENHA}"
+    }
+}

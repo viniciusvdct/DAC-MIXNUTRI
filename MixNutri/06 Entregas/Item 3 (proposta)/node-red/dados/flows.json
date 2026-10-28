@@ -1,0 +1,595 @@
+[
+    {
+        "id": "aba_mixnutri",
+        "type": "tab",
+        "label": "MixNutri sala01 (proposta item 3)",
+        "disabled": false,
+        "info": "Proposta da equipe 1 para a equipe 2 avaliar a integracao com o firmware do item 2.\nNao e a entrega da equipe 2.\n\nAssina mixnutri/sala01/#, valida o JSON, escolhe a funcao pelo canal e pelo tipo do evento e\nchama uma funcao do schema integracao no PostgreSQL (uma transacao por mensagem). Toda mensagem\nfica em integracao.mensagens_mqtt; telemetria em mixnutri.telemetria_sala01; PARADA_INICIO/FIM em\nmixnutri.paradas_maquina_sala01 (BOOT fecha paradas abertas com reinicio_dispositivo); alertas em\nmixnutri.alertas_emitidos. Erros vao para o registro bruto com o motivo.\n\nRuido em dBFS, nao dB SPL. Dados sinteticos.",
+        "env": []
+    },
+    {
+        "id": "comentario",
+        "type": "comment",
+        "z": "aba_mixnutri",
+        "name": "Proposta da equipe 1 para a equipe 2 avaliar — nao e a entrega da equipe 2",
+        "info": "Proposta da equipe 1 para a equipe 2 avaliar a integracao com o firmware do item 2.\nNao e a entrega da equipe 2.\n\nAssina mixnutri/sala01/#, valida o JSON, escolhe a funcao pelo canal e pelo tipo do evento e\nchama uma funcao do schema integracao no PostgreSQL (uma transacao por mensagem). Toda mensagem\nfica em integracao.mensagens_mqtt; telemetria em mixnutri.telemetria_sala01; PARADA_INICIO/FIM em\nmixnutri.paradas_maquina_sala01 (BOOT fecha paradas abertas com reinicio_dispositivo); alertas em\nmixnutri.alertas_emitidos. Erros vao para o registro bruto com o motivo.\n\nRuido em dBFS, nao dB SPL. Dados sinteticos.",
+        "x": 340,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "mqtt_local",
+        "type": "mqtt-broker",
+        "name": "Mosquitto local (teste)",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "nodered-mixnutri-item3",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": false,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "pg_cfg",
+        "type": "postgreSQLConfig",
+        "name": "PostgreSQL mixnutri (nodered_ingestao)",
+        "host": "postgres",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "mixnutri",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "nodered-item3",
+        "applicationNameType": "str",
+        "max": "1",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "env",
+        "userEnv": "PG_NODERED_USUARIO",
+        "passwordFieldType": "env",
+        "passwordEnv": "PG_NODERED_SENHA"
+    },
+    {
+        "id": "mqtt_in",
+        "type": "mqtt in",
+        "z": "aba_mixnutri",
+        "name": "mixnutri/sala01/#",
+        "topic": "mixnutri/sala01/#",
+        "qos": "1",
+        "datatype": "utf8",
+        "broker": "mqtt_local",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "fn_validar"
+            ]
+        ]
+    },
+    {
+        "id": "fn_validar",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Validar JSON",
+        "func": "// Converte o texto em objeto e anota canal e tipo. Saida 1: valido; saida 2: invalido.\nmsg.texto = msg.payload;\nlet dados;\ntry {\n    dados = JSON.parse(msg.payload);\n} catch (e) {\n    msg.erro = 'json_invalido';\n    return [null, msg];\n}\nif (dados === null || typeof dados !== 'object' || Array.isArray(dados)) {\n    msg.erro = 'json_nao_e_objeto';\n    return [null, msg];\n}\nmsg.canal = msg.topic.split('/').pop();\nmsg.tipoEvento = msg.canal === 'eventos' ? String(dados.tipo || '') : '';\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 120,
+        "wires": [
+            [
+                "sw_canal"
+            ],
+            [
+                "fn_falha"
+            ]
+        ]
+    },
+    {
+        "id": "sw_canal",
+        "type": "switch",
+        "z": "aba_mixnutri",
+        "name": "Canal",
+        "property": "canal",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "telemetria",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "eventos",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "disponibilidade",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 4,
+        "x": 510,
+        "y": 120,
+        "wires": [
+            [
+                "ch_telemetria"
+            ],
+            [
+                "sw_tipo"
+            ],
+            [
+                "ch_disponibilidade"
+            ],
+            [
+                "ch_somente"
+            ]
+        ]
+    },
+    {
+        "id": "sw_tipo",
+        "type": "switch",
+        "z": "aba_mixnutri",
+        "name": "Tipo do evento",
+        "property": "tipoEvento",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "PARADA_INICIO",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PARADA_FIM",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "BOOT",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "^SENSOR_(FALHA|OK)$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "eq",
+                "v": "CONFIG_APLICADA",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 6,
+        "x": 700,
+        "y": 220,
+        "wires": [
+            [
+                "ch_parada_inicio"
+            ],
+            [
+                "ch_parada_fim"
+            ],
+            [
+                "ch_boot"
+            ],
+            [
+                "ch_sensor"
+            ],
+            [
+                "ch_config"
+            ],
+            [
+                "ch_somente"
+            ]
+        ]
+    },
+    {
+        "id": "ch_telemetria",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "telemetria",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_telemetria",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 100,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_parada_inicio",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "PARADA_INICIO",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_parada_inicio",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 160,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_parada_fim",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "PARADA_FIM",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_parada_fim",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 200,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_boot",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "BOOT fecha paradas abertas",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_boot",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 240,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_sensor",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "SENSOR_FALHA / SENSOR_OK",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_sensor",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 280,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_config",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "CONFIG_APLICADA",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_config_aplicada",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 940,
+        "y": 320,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_disponibilidade",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "disponibilidade",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_disponibilidade",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 940,
+        "y": 380,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_somente",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "somente registro bruto",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "registrar_somente",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 430,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "fn_sql",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Montar chamada SQL",
+        "func": "// Monta a chamada parametrizada; so aceita funcoes conhecidas.\nconst permitidas = ['gravar_telemetria', 'gravar_parada_inicio', 'gravar_parada_fim', 'gravar_boot',\n    'gravar_sensor', 'gravar_config_aplicada', 'gravar_disponibilidade', 'registrar_somente'];\nif (!permitidas.includes(msg.funcao)) {\n    throw new Error('funcao nao permitida: ' + msg.funcao);\n}\nmsg.query = 'SELECT integracao.' + msg.funcao + '($1, $2::jsonb) AS resultado';\nmsg.params = [msg.topic, msg.texto];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 240,
+        "wires": [
+            [
+                "pg_gravar"
+            ]
+        ]
+    },
+    {
+        "id": "pg_gravar",
+        "type": "postgresql",
+        "z": "aba_mixnutri",
+        "name": "Gravar (funcoes integracao.*)",
+        "query": "",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1420,
+        "y": 240,
+        "wires": [
+            [
+                "fn_resultado"
+            ]
+        ]
+    },
+    {
+        "id": "fn_resultado",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Contar resultados",
+        "func": "// Conta os resultados devolvidos pelas funcoes e mostra no status do no.\nconst r = (msg.payload && msg.payload[0] && msg.payload[0].resultado) || '?';\nconst n = (context.get('n') || 0) + 1;\nconst dup = (context.get('dup') || 0) + (r === 'duplicada' ? 1 : 0);\ncontext.set('n', n);\ncontext.set('dup', dup);\nnode.status({ fill: 'green', shape: 'dot', text: n + ' gravadas (' + dup + ' duplicadas)' });\nmsg.payload = { topico: msg.topic, funcao: msg.funcao, resultado: r };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1640,
+        "y": 240,
+        "wires": [
+            [
+                "dbg_resultado"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_resultado",
+        "type": "debug",
+        "z": "aba_mixnutri",
+        "name": "Resultado",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1830,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "catch_pg",
+        "type": "catch",
+        "z": "aba_mixnutri",
+        "name": "Erros da gravacao",
+        "scope": [
+            "fn_sql",
+            "pg_gravar"
+        ],
+        "uncaught": false,
+        "x": 1190,
+        "y": 340,
+        "wires": [
+            [
+                "fn_falha"
+            ]
+        ]
+    },
+    {
+        "id": "fn_falha",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Preparar registro de falha",
+        "func": "// Erro na gravacao (restricao violada, campo ausente...) ou JSON invalido: guarda o texto e o motivo.\nconst motivo = msg.erro || (msg.error && msg.error.message) || String(msg.error || 'erro');\nconst n = (context.get('n') || 0) + 1;\ncontext.set('n', n);\nnode.status({ fill: 'red', shape: 'ring', text: n + ' falha(s)' });\nnode.warn('Falha ao gravar ' + msg.topic + ': ' + motivo);\nmsg.query = 'SELECT integracao.registrar_falha($1, $2, $3) AS resultado';\nmsg.params = [msg.topic, String(msg.texto !== undefined ? msg.texto : msg.payload), motivo];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1430,
+        "y": 380,
+        "wires": [
+            [
+                "pg_falha"
+            ]
+        ]
+    },
+    {
+        "id": "pg_falha",
+        "type": "postgresql",
+        "z": "aba_mixnutri",
+        "name": "Registrar falha",
+        "query": "",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1650,
+        "y": 380,
+        "wires": [
+            [
+                "dbg_falha"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_falha",
+        "type": "debug",
+        "z": "aba_mixnutri",
+        "name": "Falha registrada",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1850,
+        "y": 380,
+        "wires": []
+    }
+]

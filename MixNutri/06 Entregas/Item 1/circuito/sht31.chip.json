@@ -1,0 +1,44 @@
+{
+  "name": "SHT31 - modelo parcial I2C",
+  "author": "Equipe 1 - prototipo assistido por IA",
+  "pins": [
+    "VCC",
+    "GND",
+    "SCL",
+    "SDA"
+  ],
+  "controls": [
+    {
+      "id": "temperatureC",
+      "label": "Temperatura sintetica (C)",
+      "type": "range",
+      "min": 0,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "id": "humidityPercent",
+      "label": "Umidade sintetica (% UR)",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "id": "online",
+      "label": "Responde no I2C (0=falha)",
+      "type": "range",
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    {
+      "id": "crcFault",
+      "label": "Falha de CRC (1=ativa)",
+      "type": "range",
+      "min": 0,
+      "max": 1,
+      "step": 1
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+# Cenario automatico do Wokwi CLI:  wokwi-cli --scenario testes/wokwi/item2.test.yaml --timeout 120000
+# NAO EXECUTADO nesta sessao (exige WOKWI_CLI_TOKEN e firmware compilado). A documentacao lista
+# set-control para pecas nativas; o uso com controles de chips customizados precisa ser confirmado.
+# Os mesmos passos foram executados manualmente no Wokwi web (ver evidencias/).
+name: 'MixNutri item 2 - histerese, parada e fila offline'
+version: 1
+author: 'Equipe 1'
+steps:
+  - wait-serial: 'FILA flash_ok=1'
+  - wait-serial: 'clima=OK'
+  - set-control:
+      part-id: clima
+      name: humidityPercent
+      value: 60
+  - wait-serial: '"desumidificador_comandado":true,"motivo":"histerese"'
+  - expect-pin:
+      part-id: esp
+      name: D26
+      value: 1
+  - set-control:
+      part-id: som
+      name: amplitudePercent
+      value: 0
+  - wait-serial: '"tipo":"PARADA_INICIO"'
+  - set-control:
+      part-id: som
+      name: amplitudePercent
+      value: 80
+  - wait-serial: '"tipo":"PARADA_FIM"'
+  - write-serial: 'n'
+  - wait-serial: 'REDE queda simulada ATIVA'
+  - delay: 12000ms
+  - write-serial: 'f'
+  - wait-serial: 'FILA flash_ok=1 itens='

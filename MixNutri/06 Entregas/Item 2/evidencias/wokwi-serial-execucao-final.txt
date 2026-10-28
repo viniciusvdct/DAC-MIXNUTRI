@@ -1,0 +1,59 @@
+# Monitor serial do Wokwi web, execucao final do firmware do item 2 (27/10/2026).
+# Arquivos identicos aos locais por SHA-256 (logica.h 30659c8e7ba6..., sketch.ino a792682471ee...).
+# Trecho: linhas de boot, rede, fila, comandos recebidos e 1 de cada 10 linhas ST.
+# Eventos (EVT) e confirmacoes (ACK) completos estao em mqtt-recebido-execucao-final.log.
+# As linhas "E (3x) esp_littlefs ... Corrupted dir pair" sao do primeiro boot com Flash virgem:
+# a montagem falha e o firmware formata a particao (LittleFS.begin(true)); em seguida FILA flash_ok=1.
+ets Jul 29 2019 12:21:46
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+E (36) esp_littlefs: ./managed_components/joltwallet__littlefs/src/littlefs/lfs.c:1382:error: Corrupted dir pair at {0x0, 0x1}
+E (38) esp_littlefs: mount failed,  (-84)
+E (41) esp_littlefs: Failed to initialize LittleFS
+MIXNUTRI FIRMWARE ITEM 2 | sala01-esp32 | boot=b1 | origem=simulacao | som em dBFS (nao dB SPL)
+MQTT broker=broker.hivemq.com:1883 base=mixnutri/sala01
+FILA flash_ok=1 itens=0 capacidade=192 slot=1024B
+CONFIG versao=1 ur_liga=55.0 ur_desliga=50.0 operando>=-25.0dBFS parado<=-35.0dBFS modbus=0
+CONTEXTO produto=NAO_INFORMADO lote=NAO_INFORMADO
+ST t=2s UR=53.00 T=25.00 clima=OK dBFS=nan som=DESCONHECIDO maquina=DESCONHECIDO(indisponivel) rele=OFF(histerese) modo=AUTO wifi=0 mqtt=0 fila=1
+REDE wifi=1 mqtt=1 broker=broker.hivemq.com fila=1
+REDE fila da Flash reenviada; total reenviado=1
+ST t=22s UR=60.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=ON(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+ST t=30s UR=49.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=ON(tempo_minimo) modo=AUTO wifi=1 mqtt=1 fila=0
+ST t=42s UR=53.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+MQTT <- mixnutri/sala01/comandos {"cmd_id":"mqtt-v2-1","modo":"MANUAL","rele":"ON","validade_s":20,"ts":1793142591}
+MQTT <- mixnutri/sala01/comandos {"cmd_id":"mqtt-v2-2","modo":"MANUAL","rele":"OFF","ts":1793141991}
+MQTT <- mixnutri/sala01/comandos {"cmd_id":"mqtt-v2-1","modo":"MANUAL","rele":"ON"}
+MQTT <- mixnutri/sala01/comandos {"cmd_id":"mqtt-v2-3","modo":"TURBO"}
+ST t=62s UR=53.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=ON(manual) modo=MANUAL wifi=1 mqtt=1 fila=0
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-v2-2","versao":2,"ur_max":58,"histerese":4,"limiar_db":-22,"banda_db":12}
+ST t=82s UR=53.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-v2-2b","versao":2,"ur_max":58,"histerese":4}
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-v2-3","versao":3,"ur_liga":40,"ur_desliga":45}
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-v2-1","versao":1,"ur_liga":70,"ur_desliga":60}
+MQTT <- mixnutri/sala01/contexto {"cmd_id":"ctx-v2-1","produto":"PRODUTO_TESTE","lote_producao":"LOTE_TESTE_01","lote_capsula":"CAP_TESTE"}
+MQTT <- mixnutri/sala01/contexto {"cmd_id":"ctx-v2-2","produto":"","lote_producao":"X"}
+ST t=102s UR=53.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+ST t=142s UR=53.00 T=25.00 clima=OK dBFS=nan som=DESCONHECIDO maquina=DESCONHECIDO(indisponivel) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+ST t=162s UR=53.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+ST t=182s UR=62.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(tempo_minimo) modo=AUTO wifi=1 mqtt=1 fila=0
+REDE queda simulada ATIVA (mensagens vao para a Flash)
+REDE wifi=0 mqtt=0 broker=broker.hivemq.com fila=0
+ST t=202s UR=62.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=ON(histerese) modo=AUTO wifi=0 mqtt=0 fila=0
+FILA flash_ok=1 itens=4 capacidade=192 perdidas=0 reenviadas=1 descartes=0
+ST t=222s UR=62.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=ON(histerese) modo=AUTO wifi=0 mqtt=0 fila=4
+FILA flash_ok=1 itens=6 capacidade=192 perdidas=0 reenviadas=1 descartes=0
+REINICIANDO
+ets Jul 29 2019 12:21:46
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+MIXNUTRI FIRMWARE ITEM 2 | sala01-esp32 | boot=b2 | origem=simulacao | som em dBFS (nao dB SPL)
+MQTT broker=broker.hivemq.com:1883 base=mixnutri/sala01
+FILA flash_ok=1 itens=6 capacidade=192 slot=1024B
+CONFIG versao=2 ur_liga=58.0 ur_desliga=54.0 operando>=-22.0dBFS parado<=-34.0dBFS modbus=0
+CONTEXTO produto=PRODUTO_TESTE lote=LOTE_TESTE_01
+REDE wifi=1 mqtt=1 broker=broker.hivemq.com fila=8
+REDE fila da Flash reenviada; total reenviado=8
+ST t=243s UR=50.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-modbus-3","versao":3,"modbus":{"habilitado":true,"host":"10.255.255.1","porta":502,"unit":1,"reg_status":0,"reg_falha":1,"intervalo_ms":2000}}
+ST t=263s UR=50.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0
+MQTT <- mixnutri/sala01/configuracao {"cmd_id":"cfg-modbus-4","versao":4,"modbus":{"habilitado":false}}
+ST t=283s UR=50.00 T=25.00 clima=OK dBFS=-10.8 som=OPERANDO maquina=OPERANDO(sintetico) rele=OFF(histerese) modo=AUTO wifi=1 mqtt=1 fila=0

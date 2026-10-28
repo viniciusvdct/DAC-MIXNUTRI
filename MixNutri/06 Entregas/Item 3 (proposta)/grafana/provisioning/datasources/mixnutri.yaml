@@ -1,0 +1,19 @@
+# Datasource da proposta do item 3: papel grafana_leitura (somente SELECT). Senha vem do .env.
+apiVersion: 1
+datasources:
+  - name: MixNutri PostgreSQL
+    uid: mixnutri-pg
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    user: grafana_leitura
+    isDefault: true
+    editable: false
+    jsonData:
+      database: mixnutri
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+      maxOpenConns: 5
+    secureJsonData:
+      password: ${PG_GRAFANA_SENHA}

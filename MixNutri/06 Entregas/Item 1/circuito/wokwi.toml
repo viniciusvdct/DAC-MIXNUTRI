@@ -1,0 +1,16 @@
+# Wokwi CLI e Wokwi for VS Code (diagnostico do item 1). Antes de rodar:
+#   pio run
+#   wokwi-cli chip compile sht31.chip.c -o sht31.chip.wasm
+#   wokwi-cli chip compile som.chip.c -o som.chip.wasm
+[wokwi]
+version = 1
+firmware = '.pio/build/esp32dev/firmware.bin'
+elf = '.pio/build/esp32dev/firmware.elf'
+
+[[chip]]
+name = 'sht31'
+binary = 'sht31.chip.wasm'
+
+[[chip]]
+name = 'som'
+binary = 'som.chip.wasm'

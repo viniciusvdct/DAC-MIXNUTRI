@@ -1,0 +1,17 @@
+# ACL proposta (contrato MQTT v2). @ESP32@ e @BACKEND@ sao trocados pelos usuarios do .env.
+# O ESP32 publica telemetria, eventos, confirmacoes e disponibilidade (inclusive o Last Will)
+# e so le comandos, configuracao e contexto. O backend/Admin le tudo e escreve os tres ultimos.
+user @ESP32@
+topic write mixnutri/sala01/telemetria
+topic write mixnutri/sala01/eventos
+topic write mixnutri/sala01/confirmacoes
+topic readwrite mixnutri/sala01/disponibilidade
+topic read mixnutri/sala01/comandos
+topic read mixnutri/sala01/configuracao
+topic read mixnutri/sala01/contexto
+
+user @BACKEND@
+topic read mixnutri/sala01/#
+topic write mixnutri/sala01/comandos
+topic write mixnutri/sala01/configuracao
+topic write mixnutri/sala01/contexto

@@ -1,0 +1,12 @@
+# Copia local das credenciais de teste (o modelo versionado e .env.exemplo).
+.env
+# Arquivos de execucao que o Node-RED cria em /data.
+node-red/dados/.config.*.json
+node-red/dados/.config.*.json.backup
+node-red/dados/.flows*.json.backup
+node-red/dados/.flows_cred*.json.backup
+node-red/dados/lib/
+node-red/dados/node_modules/
+node-red/dados/package.json
+node-red/dados/package-lock.json
+node-red/dados/context/

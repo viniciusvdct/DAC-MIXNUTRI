@@ -53,6 +53,37 @@ Como alternativa ao som, o projeto também prevê **Modbus TCP** para consultar 
 
 ## Em que etapa estamos
 
-Já executamos uma versão do circuito e do programa de diagnóstico no Wokwi, verificando leituras, acionamento do relé, histerese e falha de leitura. O firmware principal está em desenvolvimento, e a comunicação completa com o banco, os painéis e os alertas ainda precisa ser validada em conjunto.
+Situação em 28/10/2026:
 
-Os valores usados na simulação são demonstrativos. O sinal sonoro não representa uma medição acústica calibrada, e a proximidade entre umidade alta e uma parada não comprova a causa das quebras. Essa investigação depende de dados reais de produção e qualidade.
+| Entrega | Situação | Onde ver |
+| --- | --- | --- |
+| **Item 1:** circuito no Wokwi e script SQL | Pronto (versão 2) e testado no Wokwi e no PostgreSQL | [Projeto no Wokwi](https://wokwi.com/projects/479079864657061889) · [pasta](MixNutri/06%20Entregas/Item%201) |
+| **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens | [Projeto no Wokwi](https://wokwi.com/projects/479080199406642177) · [pasta](MixNutri/06%20Entregas/Item%202) |
+| **Item 3:** ambiente de integração | Proposta da equipe 1 para a equipe 2 avaliar; arquivos prontos, ainda não executados | [pasta](MixNutri/06%20Entregas/Item%203%20%28proposta%29) |
+| **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3 | — |
+
+Os valores usados na simulação são demonstrativos. O nível de ruído sai em **dBFS**, uma medida relativa ao conversor do ESP32, e não em dB SPL: o sinal sonoro é sintético e não representa uma medição acústica calibrada. A proximidade entre umidade alta e uma parada não comprova a causa das quebras. Essa investigação depende de dados reais de produção e qualidade.
+
+## Para as outras equipes
+
+- **Mensagens MQTT:** tópicos, campos e exemplos reais estão no [contrato MQTT](MixNutri/02%20Equipe%201/Contrato%20MQTT%20proposto.md), seção "Versão 2". O [log das mensagens recebidas](MixNutri/06%20Entregas/Item%202/evidencias/mqtt-recebido-execucao-final.log) mostra o que o ESP32 publica.
+- **Banco de dados:** o [schema](MixNutri/06%20Entregas/Item%201/banco/01_schema.sql) tem as tabelas de telemetria, paradas, configuração de alertas e alertas emitidos, com os mesmos nomes de campo das mensagens.
+- **Ferramenta de teste:** o [mqtt_mini.py](MixNutri/06%20Entregas/Item%202/ferramentas/mqtt_mini.py) assina e publica no broker sem instalar nada além do Python.
+- **Compatibilidade:** a [análise da entrega das etapas 3 e 4](MixNutri/06%20Entregas/Item%203%20%28proposta%29/Compatibilidade%20com%20a%20entrega%20das%20etapas%203%20e%204.md) lista as diferenças entre os contratos e as perguntas em aberto.
+
+Tudo isso é proposta para combinarmos juntos. Nenhum formato foi fechado entre as equipes ainda.
+
+## Como o repositório está organizado
+
+A pasta `MixNutri` também é um cofre do Obsidian: os links `[[assim]]` funcionam lá, e no GitHub aparecem como texto.
+
+| Pasta | Conteúdo |
+| --- | --- |
+| `00 Contexto`, `01 Projeto` | Visão do desafio, escopo das equipes, requisitos e cronograma |
+| `02 Equipe 1` | Arquitetura, controle de umidade, detecção de parada, parâmetros e contrato MQTT |
+| `03 Simulacao` | Plano e limites da simulação, matriz de testes, evidências e uso do Wokwi CLI |
+| `04 Memoria` | Decisões, pendências, tarefas e o registro de cada sessão de trabalho |
+| `06 Entregas` | Itens 1, 2 e 3 com código, instruções, validação e evidências |
+| `90 Fontes` | Referências técnicas e a entrega recebida da outra equipe (etapas 3 e 4) |
+
+Ficaram fora deste repositório público os documentos originais do desafio, as transcrições deles e os contatos da coordenação: o material do desafio tem distribuição restrita ao SENAI-MS, à UCDB e à empresa. Senhas também não são publicadas; o ambiente do item 3 traz só um modelo (`.env.exemplo`).

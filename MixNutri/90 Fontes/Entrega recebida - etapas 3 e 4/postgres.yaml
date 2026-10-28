@@ -1,0 +1,17 @@
+apiVersion: 1
+datasources:
+  - name: MixNutri PostgreSQL
+    uid: mixnutri-pg
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: grafana_reader
+    database: iotmixnutri
+    isDefault: true
+    editable: false
+    jsonData:
+      postgresVersion: 1600
+      sslmode: disable
+      timescaledb: false
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD

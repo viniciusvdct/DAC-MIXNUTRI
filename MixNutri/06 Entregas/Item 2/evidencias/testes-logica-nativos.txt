@@ -1,0 +1,19 @@
+# clang++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -I . testes/test_logica.cpp
+# Apple clang version 21.0.0 (clang-2100.3.34.2) - 2026-10-27 19:20 -0400
+OK: configuracao padrao valida; invalidas rejeitadas sem aplicar
+OK: histerese 45->60->53->49->53->55 = OFF ON ON OFF OFF ON
+OK: falha de sensor em AUTO desliga
+OK: tempo minimo entre comutacoes respeitado
+OK: MANUAL ON vence e volta a AUTO uma unica vez
+OK: agora anterior ao comando e estouro de millis() tratados
+OK: OPERANDO confirmado apos 3 s acima do limiar
+OK: PARADO apos 5 s, inicio da parada no instante da queda
+OK: pulso curto ignorado; fim da parada no retorno confirmado
+OK: sensor invalido -> DESCONHECIDO e parada encerrada como fonte_indisponivel
+OK: dBFS = 20 log10(rms/2048), piso em 1 contagem
+OK: Modbus FC03 quadro, resposta, excecao e perda de comunicacao
+OK: fila preserva ordem e sobrevive a reabertura (reinicio)
+OK: fila cheia descarta a mais antiga e conta perdas
+OK: payload grande rejeitado; cabecalho corrompido reinicia vazio
+TODOS OS TESTES DE LOGICA PASSARAM
+exit=0

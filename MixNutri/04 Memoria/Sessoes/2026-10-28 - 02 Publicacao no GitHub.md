@@ -33,7 +33,7 @@ Decisão da IA, por segurança: nunca publicar senhas. O `.env.exemplo` do item 
 
 ## Testes e evidências
 
-Antes do push: verificação de que nenhum arquivo do commit contém as senhas do `.env`, nem os e-mails ou nomes da coordenação. Depois do push: listagem dos arquivos no GitHub.
+Antes do push, os 142 arquivos do commit foram varridos: nenhuma senha do `.env` (no `.env.exemplo` só os nomes de usuário coincidem), nenhum e-mail, telefone ou nome da coordenação, nenhum PDF, DOCX, ZIP ou transcrição. Depois do push, a árvore no GitHub foi conferida: 142 arquivos. Commit: [cbbc755](https://github.com/viniciusvdct/DAC-MIXNUTRI/commit/cbbc755224b68fa41735574744a19ffa6758c1fb).
 
 ## Pendências e próximo passo
 

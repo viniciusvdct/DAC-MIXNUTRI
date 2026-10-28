@@ -39,3 +39,5 @@ O usuário pediu para subir tudo ao repositório, que é **público**, para comp
 - **Senhas:** o `.env` do item 3 não é publicado. O `.env.exemplo` passou a conter só marcadores `TROCAR_*`, e as senhas de teste geradas ficaram apenas no `.env` local.
 
 Também ficam fora: `.obsidian/`, os ZIPs (o conteúdo já está nas pastas), `.DS_Store` e saídas de compilação. O README foi atualizado com a situação de cada item, os links do Wokwi, o caminho para as outras equipes e o mapa das pastas. A publicação foi feita a partir de um clone fora do iCloud, para não colocar `.git` dentro do cofre sincronizado.
+
+Commit da publicação: [cbbc755](https://github.com/viniciusvdct/DAC-MIXNUTRI/commit/cbbc755224b68fa41735574744a19ffa6758c1fb). 142 arquivos no repositório depois do push.

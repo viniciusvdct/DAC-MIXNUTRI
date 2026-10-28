@@ -5,6 +5,10 @@
 .env
 _env
 
+# Python
+__pycache__/
+*.pyc
+
 # Saidas de compilacao (PlatformIO / Wokwi CLI)
 .pio/
 *.chip.wasm

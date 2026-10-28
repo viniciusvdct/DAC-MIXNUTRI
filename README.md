@@ -22,7 +22,7 @@ Somos a **equipe 1, responsável pelo circuito eletrônico e pela programação 
 
 ## Hardware do MVP
 
-Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo na protoboard, alimentado pelo USB. É a mesma placa e são os mesmos pinos da simulação, então o firmware do Wokwi grava direto, sem alteração.
+Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo na protoboard, alimentado pelo USB. É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, só é preciso trocar no topo do `sketch.ino` o nome e a senha do Wi-Fi, o endereço do broker e `MIXNUTRI_SIMULACAO` para `0`. A gravação na placa física ainda não foi testada.
 
 | Qtd. | Componente | Para quê |
 | --- | --- | --- |

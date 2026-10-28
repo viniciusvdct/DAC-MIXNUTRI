@@ -1,3 +1,0 @@
-Historico de desenvolvimento: estas capturas/logs sao anteriores a correcao da polaridade do rele.
-O comando logico estava invertido em relacao a carga do modulo npn.
-Nao usar como evidencias finais do LED. A versao corrigida usa ON=HIGH e OFF=LOW.

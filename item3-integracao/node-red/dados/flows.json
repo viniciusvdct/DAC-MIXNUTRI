@@ -1,0 +1,1983 @@
+[
+    {
+        "id": "aba_mixnutri",
+        "type": "tab",
+        "label": "MixNutri sala01 (proposta item 3)",
+        "disabled": false,
+        "info": "Proposta da equipe 1 para a equipe 2 avaliar a integracao com o firmware do item 2.\nNao e a entrega da equipe 2.\n\nAssina mixnutri/sala01/#, valida o JSON, escolhe a funcao pelo canal e pelo tipo do evento e\nchama uma funcao do schema integracao no PostgreSQL (uma transacao por mensagem). Toda mensagem\nfica em integracao.mensagens_mqtt; telemetria em mixnutri.telemetria_sala01; PARADA_INICIO/FIM em\nmixnutri.paradas_maquina_sala01 (BOOT fecha paradas abertas com reinicio_dispositivo); alertas em\nmixnutri.alertas_emitidos. Erros vao para o registro bruto com o motivo.\n\nRuido em dBFS, nao dB SPL. Dados sinteticos.",
+        "env": []
+    },
+    {
+        "id": "comentario",
+        "type": "comment",
+        "z": "aba_mixnutri",
+        "name": "Proposta da equipe 1 para a equipe 2 avaliar — nao e a entrega da equipe 2",
+        "info": "Proposta da equipe 1 para a equipe 2 avaliar a integracao com o firmware do item 2.\nNao e a entrega da equipe 2.\n\nAssina mixnutri/sala01/#, valida o JSON, escolhe a funcao pelo canal e pelo tipo do evento e\nchama uma funcao do schema integracao no PostgreSQL (uma transacao por mensagem). Toda mensagem\nfica em integracao.mensagens_mqtt; telemetria em mixnutri.telemetria_sala01; PARADA_INICIO/FIM em\nmixnutri.paradas_maquina_sala01 (BOOT fecha paradas abertas com reinicio_dispositivo); alertas em\nmixnutri.alertas_emitidos. Erros vao para o registro bruto com o motivo.\n\nRuido em dBFS, nao dB SPL. Dados sinteticos.",
+        "x": 340,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "mqtt_local",
+        "type": "mqtt-broker",
+        "name": "Mosquitto local (teste)",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "nodered-mixnutri-item3",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": false,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "pg_cfg",
+        "type": "postgreSQLConfig",
+        "name": "PostgreSQL mixnutri (nodered_ingestao)",
+        "host": "postgres",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "mixnutri",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "nodered-item3",
+        "applicationNameType": "str",
+        "max": "1",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "env",
+        "userEnv": "PG_NODERED_USUARIO",
+        "passwordFieldType": "env",
+        "passwordEnv": "PG_NODERED_SENHA"
+    },
+    {
+        "id": "mqtt_in",
+        "type": "mqtt in",
+        "z": "aba_mixnutri",
+        "name": "mixnutri/sala01/#",
+        "topic": "mixnutri/sala01/#",
+        "qos": "1",
+        "datatype": "utf8",
+        "broker": "mqtt_local",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "fn_validar"
+            ]
+        ]
+    },
+    {
+        "id": "fn_validar",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Validar JSON",
+        "func": "// Converte o texto em objeto e anota canal e tipo. Saida 1: valido; saida 2: invalido.\nmsg.texto = msg.payload;\nlet dados;\ntry {\n    dados = JSON.parse(msg.payload);\n} catch (e) {\n    msg.erro = 'json_invalido';\n    return [null, msg];\n}\nif (dados === null || typeof dados !== 'object' || Array.isArray(dados)) {\n    msg.erro = 'json_nao_e_objeto';\n    return [null, msg];\n}\nmsg.canal = msg.topic.split('/').pop();\n// Produto/lote em vigor no ESP32, usados nas paradas lidas por Modbus.\nif (msg.canal === 'telemetria' && dados.produto) {\n    global.set('contexto', { produto: dados.produto, lote_producao: dados.lote_producao,\n        lote_capsula: dados.lote_capsula || null, lote_po: dados.lote_po || null });\n}\nmsg.tipoEvento = msg.canal === 'eventos' ? String(dados.tipo || '') : '';\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 120,
+        "wires": [
+            [
+                "sw_canal",
+                "link_painel_out"
+            ],
+            [
+                "fn_falha"
+            ]
+        ]
+    },
+    {
+        "id": "sw_canal",
+        "type": "switch",
+        "z": "aba_mixnutri",
+        "name": "Canal",
+        "property": "canal",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "telemetria",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "eventos",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "disponibilidade",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 4,
+        "x": 510,
+        "y": 120,
+        "wires": [
+            [
+                "ch_telemetria"
+            ],
+            [
+                "sw_tipo"
+            ],
+            [
+                "ch_disponibilidade"
+            ],
+            [
+                "ch_somente"
+            ]
+        ]
+    },
+    {
+        "id": "sw_tipo",
+        "type": "switch",
+        "z": "aba_mixnutri",
+        "name": "Tipo do evento",
+        "property": "tipoEvento",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "PARADA_INICIO",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "PARADA_FIM",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "BOOT",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "^SENSOR_(FALHA|OK)$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "eq",
+                "v": "CONFIG_APLICADA",
+                "vt": "str"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 6,
+        "x": 700,
+        "y": 220,
+        "wires": [
+            [
+                "ch_parada_inicio"
+            ],
+            [
+                "ch_parada_fim"
+            ],
+            [
+                "ch_boot"
+            ],
+            [
+                "ch_sensor"
+            ],
+            [
+                "ch_config"
+            ],
+            [
+                "ch_somente"
+            ]
+        ]
+    },
+    {
+        "id": "ch_telemetria",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "telemetria",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_telemetria",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 100,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_parada_inicio",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "PARADA_INICIO",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_parada_inicio",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 160,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_parada_fim",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "PARADA_FIM",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_parada_fim",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 930,
+        "y": 200,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_boot",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "BOOT fecha paradas abertas",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_boot",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 240,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_sensor",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "SENSOR_FALHA / SENSOR_OK",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_sensor",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 280,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_config",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "CONFIG_APLICADA",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_config_aplicada",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 940,
+        "y": 320,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_disponibilidade",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "disponibilidade",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "gravar_disponibilidade",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 940,
+        "y": 380,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "ch_somente",
+        "type": "change",
+        "z": "aba_mixnutri",
+        "name": "somente registro bruto",
+        "rules": [
+            {
+                "t": "set",
+                "p": "funcao",
+                "pt": "msg",
+                "to": "registrar_somente",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 430,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "fn_sql",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Montar chamada SQL",
+        "func": "// Monta a chamada parametrizada; so aceita funcoes conhecidas.\nconst permitidas = ['gravar_telemetria', 'gravar_parada_inicio', 'gravar_parada_fim', 'gravar_boot',\n    'gravar_sensor', 'gravar_config_aplicada', 'gravar_disponibilidade', 'registrar_somente'];\nif (!permitidas.includes(msg.funcao)) {\n    throw new Error('funcao nao permitida: ' + msg.funcao);\n}\nmsg.query = 'SELECT integracao.' + msg.funcao + '($1, $2::jsonb) AS resultado';\nmsg.params = [msg.topic, msg.texto];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 240,
+        "wires": [
+            [
+                "pg_gravar"
+            ]
+        ]
+    },
+    {
+        "id": "pg_gravar",
+        "type": "postgresql",
+        "z": "aba_mixnutri",
+        "name": "Gravar (funcoes integracao.*)",
+        "query": "",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1420,
+        "y": 240,
+        "wires": [
+            [
+                "fn_resultado"
+            ]
+        ]
+    },
+    {
+        "id": "fn_resultado",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Contar resultados",
+        "func": "// Conta os resultados devolvidos pelas funcoes e mostra no status do no.\nconst r = (msg.payload && msg.payload[0] && msg.payload[0].resultado) || '?';\nconst n = (context.get('n') || 0) + 1;\nconst dup = (context.get('dup') || 0) + (r === 'duplicada' ? 1 : 0);\ncontext.set('n', n);\ncontext.set('dup', dup);\nnode.status({ fill: 'green', shape: 'dot', text: n + ' gravadas (' + dup + ' duplicadas)' });\nmsg.payload = { topico: msg.topic, funcao: msg.funcao, resultado: r };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1640,
+        "y": 240,
+        "wires": [
+            [
+                "dbg_resultado",
+                "link_resultado_out"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_resultado",
+        "type": "debug",
+        "z": "aba_mixnutri",
+        "name": "Resultado",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1830,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "catch_pg",
+        "type": "catch",
+        "z": "aba_mixnutri",
+        "name": "Erros da gravacao",
+        "scope": [
+            "fn_sql",
+            "pg_gravar"
+        ],
+        "uncaught": false,
+        "x": 1190,
+        "y": 340,
+        "wires": [
+            [
+                "fn_falha"
+            ]
+        ]
+    },
+    {
+        "id": "fn_falha",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Preparar registro de falha",
+        "func": "// Erro na gravacao (restricao violada, campo ausente...) ou JSON invalido: guarda o texto e o motivo.\nconst motivo = msg.erro || (msg.error && msg.error.message) || String(msg.error || 'erro');\nconst n = (context.get('n') || 0) + 1;\ncontext.set('n', n);\nnode.status({ fill: 'red', shape: 'ring', text: n + ' falha(s)' });\nnode.warn('Falha ao gravar ' + msg.topic + ': ' + motivo);\nmsg.query = 'SELECT integracao.registrar_falha($1, $2, $3) AS resultado';\nmsg.params = [msg.topic, String(msg.texto !== undefined ? msg.texto : msg.payload), motivo];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1430,
+        "y": 380,
+        "wires": [
+            [
+                "pg_falha"
+            ]
+        ]
+    },
+    {
+        "id": "pg_falha",
+        "type": "postgresql",
+        "z": "aba_mixnutri",
+        "name": "Registrar falha",
+        "query": "",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1650,
+        "y": 380,
+        "wires": [
+            [
+                "dbg_falha"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_falha",
+        "type": "debug",
+        "z": "aba_mixnutri",
+        "name": "Falha registrada",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1850,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "link_painel_out",
+        "type": "link out",
+        "z": "aba_mixnutri",
+        "name": "para o painel Admin",
+        "mode": "link",
+        "links": [
+            "link_painel_in"
+        ],
+        "x": 515,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "link_resultado_out",
+        "type": "link out",
+        "z": "aba_mixnutri",
+        "name": "resultado para o Admin",
+        "mode": "link",
+        "links": [
+            "link_resultado_in"
+        ],
+        "x": 1815,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "comentario_modbus",
+        "type": "comment",
+        "z": "aba_mixnutri",
+        "name": "Leitura Modbus TCP (desenho da outra equipe) — desligada por padrao (MODBUS_HABILITADO)",
+        "info": "FC03 sem pacotes extras (no tcp request). Grava paradas com fonte_estado = modbus pelo mesmo caminho SQL. Mapa padrao do simulador da outra equipe: HR3 = maquina (1 operando, 0 parada), HR5 = codigo de falha.",
+        "x": 360,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "inj_modbus",
+        "type": "inject",
+        "z": "aba_mixnutri",
+        "name": "a cada MODBUS_INTERVALO_S",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "${MODBUS_INTERVALO_S}",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 5,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 170,
+        "y": 580,
+        "wires": [
+            [
+                "fn_modbus_req"
+            ]
+        ]
+    },
+    {
+        "id": "fn_modbus_req",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Montar leitura FC03",
+        "func": "// Monta a leitura FC03 (holding registers) do bloco que contem STATUS e FALHA.\n// Desligada por padrao: MODBUS_HABILITADO=true so com o simulador ou com acesso ao CLP autorizado.\nif (env.get('MODBUS_HABILITADO') !== 'true') return [null, null];\nconst rs = Number(env.get('MODBUS_REG_STATUS')), rf = Number(env.get('MODBUS_REG_FALHA'));\nconst inicio = Math.min(rs, rf), qtd = Math.abs(rs - rf) + 1;\nif (!(qtd >= 1 && qtd <= 125)) { node.error('MODBUS_REG_STATUS/FALHA invalidos'); return [null, null]; }\nconst tid = ((context.get('tid') || 0) + 1) & 0xffff;\ncontext.set('tid', tid);\nconst unit = Number(env.get('MODBUS_UNIT') || 1);\nconst q = Buffer.alloc(12);\nq.writeUInt16BE(tid, 0); q.writeUInt16BE(0, 2); q.writeUInt16BE(6, 4); q.writeUInt8(unit, 6);\nq.writeUInt8(3, 7); q.writeUInt16BE(inicio, 8); q.writeUInt16BE(qtd, 10);\nmsg.payload = q;\nmsg.host = env.get('MODBUS_HOST');\nmsg.port = Number(env.get('MODBUS_PORTA'));\nmsg.modbus = { tid, unit, inicio, qtd, rs, rf };\n// Primeira leitura desta implantacao: BOOT do leitor virtual fecha paradas Modbus deixadas abertas.\nlet boot = null;\nif (!flow.get('modbus_boot_enviado')) {\n    flow.set('modbus_boot_enviado', true);\n    boot = { topic: 'mixnutri/sala01/eventos', funcao: 'gravar_boot', evento: 'BOOT' };\n}\nreturn [msg, boot];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 580,
+        "wires": [
+            [
+                "tcp_modbus"
+            ],
+            [
+                "fn_modbus_evt"
+            ]
+        ]
+    },
+    {
+        "id": "tcp_modbus",
+        "type": "tcp request",
+        "z": "aba_mixnutri",
+        "name": "Modbus TCP (msg.host/port)",
+        "server": "",
+        "port": "",
+        "out": "time",
+        "ret": "buffer",
+        "splitc": "500",
+        "newline": "",
+        "trim": false,
+        "tls": "",
+        "x": 640,
+        "y": 560,
+        "wires": [
+            [
+                "fn_modbus_evt"
+            ]
+        ]
+    },
+    {
+        "id": "catch_modbus",
+        "type": "catch",
+        "z": "aba_mixnutri",
+        "name": "Falha Modbus",
+        "scope": [
+            "tcp_modbus"
+        ],
+        "uncaught": false,
+        "x": 630,
+        "y": 620,
+        "wires": [
+            [
+                "fn_modbus_erro"
+            ]
+        ]
+    },
+    {
+        "id": "fn_modbus_erro",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Marcar leitura sem resposta",
+        "func": "// Falha de conexao do tcp request: conta como leitura sem resposta.\nmsg.erroModbus = (msg.error && msg.error.message) || 'erro';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 620,
+        "wires": [
+            [
+                "fn_modbus_evt"
+            ]
+        ]
+    },
+    {
+        "id": "fn_modbus_evt",
+        "type": "function",
+        "z": "aba_mixnutri",
+        "name": "Estado Modbus -> eventos v2",
+        "func": "// Interpreta a resposta FC03 e gera PARADA_INICIO/FIM no formato do contrato v2.\n// Perda de comunicacao (3 leituras seguidas) leva a DESCONHECIDO, nunca a PARADO.\nconst DEV = 'clp-sala01-modbus';\nconst boot = flow.get('modbus_boot') || ('nr' + Date.now().toString(36));\nflow.set('modbus_boot', boot);\nconst t0 = flow.get('modbus_t0') || Date.now();\nflow.set('modbus_t0', t0);\n\nfunction cabecalho(tipo) {\n    const seq = (flow.get('modbus_seq') || 0);\n    flow.set('modbus_seq', seq + 1);\n    const ctx = global.get('contexto') || { produto: 'NAO_INFORMADO', lote_producao: 'NAO_INFORMADO' };\n    return { schema_version: 2, device_id: DEV, sala_id: 'sala01', boot_id: boot, seq,\n        uptime_ms: Date.now() - t0, timestamp_utc: new Date().toISOString(), clock_synced: true,\n        origem_dados: env.get('MODBUS_ORIGEM_DADOS') || 'simulacao', tipo,\n        produto: ctx.produto, lote_producao: ctx.lote_producao,\n        lote_capsula: ctx.lote_capsula || null, lote_po: ctx.lote_po || null };\n}\nfunction enviar(funcao, p) {\n    return { topic: 'mixnutri/sala01/eventos', funcao, texto: JSON.stringify(p) };\n}\n\nif (msg.evento === 'BOOT') {\n    return enviar('gravar_boot', Object.assign(cabecalho('BOOT'), { reset_reason: 0, fonte_estado: 'modbus' }));\n}\n\nlet status = null, falha = null;\nconst m = msg.modbus, r = Buffer.isBuffer(msg.payload) ? msg.payload : null;\nif (!msg.erroModbus && m && r && r.length >= 9 + 2 * m.qtd && r.readUInt16BE(0) === m.tid\n        && r.readUInt8(7) === 3 && r.readUInt8(8) === 2 * m.qtd) {\n    status = r.readUInt16BE(9 + 2 * (m.rs - m.inicio));\n    falha = r.readUInt16BE(9 + 2 * (m.rf - m.inicio));\n}\nlet novo;\nif (status === null) {\n    const erros = (flow.get('modbus_erros') || 0) + 1;\n    flow.set('modbus_erros', erros);\n    node.status({ fill: 'red', shape: 'ring', text: 'sem resposta (' + erros + ')' });\n    if (erros < 3) return null;\n    novo = 'DESCONHECIDO';\n} else {\n    flow.set('modbus_erros', 0);\n    novo = status === 1 ? 'OPERANDO' : status === 0 ? 'PARADO' : 'DESCONHECIDO';\n    node.status({ fill: novo === 'PARADO' ? 'red' : 'green', shape: 'dot', text: novo + ' falha=' + falha });\n}\nconst antes = flow.get('modbus_estado') || 'DESCONHECIDO';\nflow.set('modbus_estado', novo);\nif (novo === antes) return null;\n\nconst aberta = flow.get('modbus_parada');\nif (novo === 'PARADO' && !aberta) {\n    const n = (flow.get('modbus_n') || 0) + 1;\n    flow.set('modbus_n', n);\n    const p = Object.assign(cabecalho('PARADA_INICIO'), { fonte_estado: 'modbus', de: antes, para: novo,\n        evento_id: DEV + '-' + boot + '-modbus-' + n, codigo_falha: falha });\n    p.inicio_uptime_ms = p.uptime_ms;\n    p.inicio_utc = p.timestamp_utc;\n    flow.set('modbus_parada', { evento_id: p.evento_id, inicio_uptime_ms: p.inicio_uptime_ms, inicio_utc: p.inicio_utc });\n    return enviar('gravar_parada_inicio', p);\n}\nif (antes === 'PARADO' && aberta) {\n    flow.set('modbus_parada', null);\n    const p = Object.assign(cabecalho('PARADA_FIM'), aberta, { fonte_estado: 'modbus', de: antes, para: novo,\n        codigo_falha: falha, motivo_fim: novo === 'OPERANDO' ? 'retorno_operacao' : 'fonte_indisponivel' });\n    p.fim_uptime_ms = p.uptime_ms;\n    p.fim_utc = p.timestamp_utc;\n    p.duracao_ms = p.fim_uptime_ms - p.inicio_uptime_ms;\n    return enviar('gravar_parada_fim', p);\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 560,
+        "wires": [
+            [
+                "fn_sql"
+            ]
+        ]
+    },
+    {
+        "id": "aba_admin",
+        "type": "tab",
+        "label": "Admin v2 (proposta item 4)",
+        "disabled": false,
+        "info": "Painel Admin no formato do contrato v2 (proposta da equipe 1). Comandos sem retain, com cmd_id, validade e ts; configuracao com versao crescente (consultada no banco); contexto produto/lote. As injecoes 'Teste:' fazem o mesmo sem a interface.",
+        "env": []
+    },
+    {
+        "id": "comentario_admin",
+        "type": "comment",
+        "z": "aba_admin",
+        "name": "Admin no contrato v2 — proposta da equipe 1 (nao e a entrega da equipe 3)",
+        "info": "Painel Admin no formato do contrato v2 (proposta da equipe 1). Comandos sem retain, com cmd_id, validade e ts; configuracao com versao crescente (consultada no banco); contexto produto/lote. As injecoes 'Teste:' fazem o mesmo sem a interface.",
+        "x": 330,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "ui_base",
+        "type": "ui-base",
+        "name": "MixNutri Admin",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 5,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "ui_tema",
+        "type": "ui-theme",
+        "name": "MixNutri",
+        "colors": {
+            "surface": "#ffffff",
+            "primary": "#66734f",
+            "bgPage": "#f7f6f0",
+            "groupBg": "#ffffff",
+            "groupOutline": "#e2e0d6"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "16px",
+            "groupGap": "16px",
+            "groupBorderRadius": "12px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "ui_pagina_admin",
+        "type": "ui-page",
+        "name": "Admin sala01",
+        "ui": "ui_base",
+        "path": "/admin",
+        "icon": "settings",
+        "layout": "grid",
+        "theme": "ui_tema",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "ui_grupo_estado",
+        "type": "ui-group",
+        "name": "Estado da sala (dados sintéticos)",
+        "page": "ui_pagina_admin",
+        "width": "6",
+        "height": "1",
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ui_grupo_config",
+        "type": "ui-group",
+        "name": "Configuração (versão crescente)",
+        "page": "ui_pagina_admin",
+        "width": "6",
+        "height": "1",
+        "order": 2,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ui_grupo_comando",
+        "type": "ui-group",
+        "name": "Desumidificador (comando sem retain)",
+        "page": "ui_pagina_admin",
+        "width": "6",
+        "height": "1",
+        "order": 3,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ui_grupo_contexto",
+        "type": "ui-group",
+        "name": "Produto e lote em produção",
+        "page": "ui_pagina_admin",
+        "width": "6",
+        "height": "1",
+        "order": 4,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
+        "id": "ui_ur_max",
+        "type": "ui-number-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "name": "UR máxima – liga (%)",
+        "label": "UR máxima – liga (%)",
+        "tooltip": "",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "topic": "ur_max",
+        "topicType": "str",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "className": "",
+        "passthru": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "clearable": false,
+        "icon": "",
+        "iconPosition": "left",
+        "iconInnerPosition": "inside",
+        "spinner": "default",
+        "x": 560,
+        "y": 120,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_histerese",
+        "type": "ui-number-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "name": "Histerese (pontos percentuais)",
+        "label": "Histerese (pontos percentuais)",
+        "tooltip": "",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "topic": "histerese",
+        "topicType": "str",
+        "min": 1,
+        "max": 50,
+        "step": 1,
+        "className": "",
+        "passthru": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "clearable": false,
+        "icon": "",
+        "iconPosition": "left",
+        "iconInnerPosition": "inside",
+        "spinner": "default",
+        "x": 560,
+        "y": 160,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_limiar",
+        "type": "ui-number-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "name": "Limiar operando (dBFS, não é dB SPL)",
+        "label": "Limiar operando (dBFS, não é dB SPL)",
+        "tooltip": "",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "topic": "limiar_db",
+        "topicType": "str",
+        "min": -120,
+        "max": 0,
+        "step": 1,
+        "className": "",
+        "passthru": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "clearable": false,
+        "icon": "",
+        "iconPosition": "left",
+        "iconInnerPosition": "inside",
+        "spinner": "default",
+        "x": 560,
+        "y": 200,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_banda",
+        "type": "ui-number-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "name": "Banda até parado (dB)",
+        "label": "Banda até parado (dB)",
+        "tooltip": "",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "topic": "banda_db",
+        "topicType": "str",
+        "min": 1,
+        "max": 60,
+        "step": 1,
+        "className": "",
+        "passthru": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "clearable": false,
+        "icon": "",
+        "iconPosition": "left",
+        "iconInnerPosition": "inside",
+        "spinner": "default",
+        "x": 560,
+        "y": 240,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_validade",
+        "type": "ui-number-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_comando",
+        "name": "Validade do MANUAL (min)",
+        "label": "Validade do MANUAL (min)",
+        "tooltip": "",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "topic": "validade_min",
+        "topicType": "str",
+        "min": 1,
+        "max": 480,
+        "step": 1,
+        "className": "",
+        "passthru": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "clearable": false,
+        "icon": "",
+        "iconPosition": "left",
+        "iconInnerPosition": "inside",
+        "spinner": "default",
+        "x": 560,
+        "y": 280,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_produto",
+        "type": "ui-text-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_contexto",
+        "name": "Produto",
+        "label": "Produto",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "topic": "produto",
+        "topicType": "str",
+        "mode": "text",
+        "tooltip": "",
+        "delay": 300,
+        "passthru": false,
+        "sendOnDelay": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "className": "",
+        "clearable": false,
+        "x": 560,
+        "y": 320,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_lote",
+        "type": "ui-text-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_contexto",
+        "name": "Lote de produção",
+        "label": "Lote de produção",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "topic": "lote_producao",
+        "topicType": "str",
+        "mode": "text",
+        "tooltip": "",
+        "delay": 300,
+        "passthru": false,
+        "sendOnDelay": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "className": "",
+        "clearable": false,
+        "x": 560,
+        "y": 360,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_lote_capsula",
+        "type": "ui-text-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_contexto",
+        "name": "Lote da cápsula (opcional)",
+        "label": "Lote da cápsula (opcional)",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "topic": "lote_capsula",
+        "topicType": "str",
+        "mode": "text",
+        "tooltip": "",
+        "delay": 300,
+        "passthru": false,
+        "sendOnDelay": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "className": "",
+        "clearable": false,
+        "x": 560,
+        "y": 400,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "ui_lote_po",
+        "type": "ui-text-input",
+        "z": "aba_admin",
+        "group": "ui_grupo_contexto",
+        "name": "Lote do pó (opcional)",
+        "label": "Lote do pó (opcional)",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "topic": "lote_po",
+        "topicType": "str",
+        "mode": "text",
+        "tooltip": "",
+        "delay": 300,
+        "passthru": false,
+        "sendOnDelay": false,
+        "sendOnBlur": true,
+        "sendOnEnter": true,
+        "className": "",
+        "clearable": false,
+        "x": 560,
+        "y": 440,
+        "wires": [
+            [
+                "fn_guardar"
+            ]
+        ]
+    },
+    {
+        "id": "fn_guardar",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Guardar campo",
+        "func": "// Guarda o valor do campo para montar a mensagem quando o botao for usado.\nconst campos = flow.get('campos') || {};\ncampos[msg.topic] = msg.payload;\nflow.set('campos', campos);\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 820,
+        "y": 280,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ui_btn_config",
+        "type": "ui-button",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "name": "Publicar configuração",
+        "label": "Publicar configuração",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "publicar",
+        "payloadType": "str",
+        "topic": "admin",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 170,
+        "y": 520,
+        "wires": [
+            [
+                "fn_pedir_versao"
+            ]
+        ]
+    },
+    {
+        "id": "ui_btn_on",
+        "type": "ui-button",
+        "z": "aba_admin",
+        "group": "ui_grupo_comando",
+        "name": "MANUAL ligado",
+        "label": "MANUAL ligado",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "MANUAL_ON",
+        "payloadType": "str",
+        "topic": "admin",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 170,
+        "y": 580,
+        "wires": [
+            [
+                "fn_comando"
+            ]
+        ]
+    },
+    {
+        "id": "ui_btn_off",
+        "type": "ui-button",
+        "z": "aba_admin",
+        "group": "ui_grupo_comando",
+        "name": "MANUAL desligado",
+        "label": "MANUAL desligado",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "MANUAL_OFF",
+        "payloadType": "str",
+        "topic": "admin",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 170,
+        "y": 620,
+        "wires": [
+            [
+                "fn_comando"
+            ]
+        ]
+    },
+    {
+        "id": "ui_btn_auto",
+        "type": "ui-button",
+        "z": "aba_admin",
+        "group": "ui_grupo_comando",
+        "name": "Voltar para AUTO",
+        "label": "Voltar para AUTO",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "AUTO",
+        "payloadType": "str",
+        "topic": "admin",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 170,
+        "y": 660,
+        "wires": [
+            [
+                "fn_comando"
+            ]
+        ]
+    },
+    {
+        "id": "ui_btn_ctx",
+        "type": "ui-button",
+        "z": "aba_admin",
+        "group": "ui_grupo_contexto",
+        "name": "Publicar contexto",
+        "label": "Publicar contexto",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "publicar",
+        "payloadType": "str",
+        "topic": "admin",
+        "topicType": "str",
+        "buttonColor": "",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 170,
+        "y": 720,
+        "wires": [
+            [
+                "fn_contexto"
+            ]
+        ]
+    },
+    {
+        "id": "inj_teste_on",
+        "type": "inject",
+        "z": "aba_admin",
+        "name": "Teste: MANUAL ligado",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.5,
+        "topic": "",
+        "payload": "MANUAL_ON",
+        "payloadType": "str",
+        "x": 170,
+        "y": 780,
+        "wires": [
+            [
+                "fn_comando"
+            ]
+        ]
+    },
+    {
+        "id": "inj_teste_auto",
+        "type": "inject",
+        "z": "aba_admin",
+        "name": "Teste: AUTO",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.5,
+        "topic": "",
+        "payload": "AUTO",
+        "payloadType": "str",
+        "x": 170,
+        "y": 820,
+        "wires": [
+            [
+                "fn_comando"
+            ]
+        ]
+    },
+    {
+        "id": "fn_teste_campos",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Teste: campos de exemplo",
+        "func": "// Valores de exemplo (didaticos) para testar sem a interface.\nflow.set('campos', Object.assign(flow.get('campos') || {}, { ur_max: 58, histerese: 4, limiar_db: -22, banda_db: 12,\n    validade_min: 1, produto: 'PRODUTO_TESTE', lote_producao: 'LOTE_TESTE_02', lote_capsula: 'CAP_TESTE' }));\nreturn [msg, msg];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 880,
+        "wires": [
+            [
+                "fn_pedir_versao"
+            ],
+            [
+                "fn_contexto"
+            ]
+        ]
+    },
+    {
+        "id": "inj_teste_cfg",
+        "type": "inject",
+        "z": "aba_admin",
+        "name": "Teste: configuracao e contexto de exemplo",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.5,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 170,
+        "y": 880,
+        "wires": [
+            [
+                "fn_teste_campos"
+            ]
+        ]
+    },
+    {
+        "id": "fn_comando",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Montar comando v2",
+        "func": "// Comando AUTO/MANUAL no contrato v2: cmd_id unico, validade e ts; nunca retido.\nconst c = flow.get('campos') || {};\nconst acao = String(msg.payload);\nconst agora = Date.now();\nconst p = { cmd_id: 'admin-' + agora, ts: Math.floor(agora / 1000) };\nif (acao === 'AUTO') {\n    p.modo = 'AUTO';\n} else if (acao === 'MANUAL_ON' || acao === 'MANUAL_OFF') {\n    const min = Number(c.validade_min || 15);\n    if (!(min >= 1 && min <= 480)) {\n        return [null, { payload: 'A validade do MANUAL deve ficar entre 1 e 480 min' }];\n    }\n    p.modo = 'MANUAL';\n    p.rele = acao === 'MANUAL_ON' ? 'ON' : 'OFF';\n    p.validade_s = Math.round(min * 60);\n} else {\n    return null;\n}\nreturn [{ topic: 'mixnutri/sala01/comandos', payload: JSON.stringify(p), retain: false, qos: 1 },\n        { payload: 'Comando enviado: ' + p.cmd_id + ' ' + p.modo + (p.rele ? ' ' + p.rele : '') }];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 620,
+        "wires": [
+            [
+                "mqtt_admin_out",
+                "dbg_admin"
+            ],
+            [
+                "ui_aviso"
+            ]
+        ]
+    },
+    {
+        "id": "fn_pedir_versao",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Consultar proxima versao",
+        "func": "// A versao precisa ser maior que a aplicada no ESP32: consulta o banco antes de publicar.\nmsg.acao = 'configuracao';\nmsg.query = 'SELECT integracao.proxima_versao_config($1) AS versao';\nmsg.params = ['sala01'];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 520,
+        "wires": [
+            [
+                "pg_admin"
+            ]
+        ]
+    },
+    {
+        "id": "fn_contexto",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Montar contexto v2",
+        "func": "// Produto e lote em producao (obrigatorios produto e lote_producao, 1 a 32 caracteres).\nconst c = flow.get('campos') || {};\nconst t = (x) => (typeof x === 'string' ? x.trim() : '');\nconst p = { cmd_id: 'ctx-' + Date.now(), produto: t(c.produto), lote_producao: t(c.lote_producao) };\nif (t(c.lote_capsula)) p.lote_capsula = t(c.lote_capsula);\nif (t(c.lote_po)) p.lote_po = t(c.lote_po);\nconst ok = (s) => s.length >= 1 && s.length <= 32;\nif (!ok(p.produto) || !ok(p.lote_producao) || [p.lote_capsula, p.lote_po].some((s) => s !== undefined && !ok(s))) {\n    return [null, { payload: 'Contexto não enviado: produto e lote de produção com 1 a 32 caracteres' }];\n}\nreturn [{ topic: 'mixnutri/sala01/contexto', payload: JSON.stringify(p), retain: true, qos: 1 },\n        { payload: 'Contexto enviado: ' + p.produto + ' / ' + p.lote_producao }];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 720,
+        "wires": [
+            [
+                "mqtt_admin_out",
+                "dbg_admin"
+            ],
+            [
+                "ui_aviso"
+            ]
+        ]
+    },
+    {
+        "id": "inj_estado",
+        "type": "inject",
+        "z": "aba_admin",
+        "name": "ao implantar",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 3,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 960,
+        "wires": [
+            [
+                "fn_pedir_estado"
+            ]
+        ]
+    },
+    {
+        "id": "fn_pedir_estado",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Consultar estado",
+        "func": "msg.acao = 'estado';\nmsg.query = 'SELECT integracao.estado_admin($1) AS estado';\nmsg.params = ['sala01'];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 960,
+        "wires": [
+            [
+                "pg_admin"
+            ]
+        ]
+    },
+    {
+        "id": "pg_admin",
+        "type": "postgresql",
+        "z": "aba_admin",
+        "name": "Consultas do Admin",
+        "query": "",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 690,
+        "y": 520,
+        "wires": [
+            [
+                "fn_rotear_consulta"
+            ]
+        ]
+    },
+    {
+        "id": "fn_rotear_consulta",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Rotear resposta",
+        "func": "// Resposta do banco para o Admin: proxima versao ou estado inicial do painel.\nreturn msg.acao === 'configuracao' ? [msg, null] : [null, msg];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 520,
+        "wires": [
+            [
+                "fn_configuracao"
+            ],
+            [
+                "fn_estado_inicial"
+            ]
+        ]
+    },
+    {
+        "id": "fn_configuracao",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Montar configuracao v2",
+        "func": "// Configuracao no formato do Admin do contrato v2 (ur_max, histerese, limiar_db, banda_db em dBFS).\nconst c = flow.get('campos') || {};\nconst versao = Number(msg.payload && msg.payload[0] && msg.payload[0].versao);\nconst v = { ur_max: Number(c.ur_max), histerese: Number(c.histerese), limiar_db: Number(c.limiar_db),\n            banda_db: Number(c.banda_db) };\nconst erros = [];\nif (!(v.ur_max > 0 && v.ur_max <= 100)) erros.push('UR máxima entre 0 e 100 %');\nif (!(v.histerese > 0 && v.histerese < v.ur_max)) erros.push('histerese positiva e menor que a UR máxima');\nif (!(v.limiar_db <= 0 && v.limiar_db >= -120)) erros.push('limiar entre -120 e 0 dBFS');\nif (!(v.banda_db > 0 && v.limiar_db - v.banda_db >= -120)) erros.push('banda positiva (limiar - banda >= -120 dBFS)');\nif (!(versao >= 1)) erros.push('versão não obtida do banco');\nif (erros.length) return [null, { payload: 'Configuração não enviada: ' + erros.join('; ') }];\nconst p = Object.assign({ cmd_id: 'cfg-' + versao, versao }, v);\nreturn [{ topic: 'mixnutri/sala01/configuracao', payload: JSON.stringify(p), retain: true, qos: 1 },\n        { payload: 'Configuração v' + versao + ' enviada; aguarde a confirmação do ESP32' }];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1110,
+        "y": 500,
+        "wires": [
+            [
+                "mqtt_admin_out",
+                "dbg_admin"
+            ],
+            [
+                "ui_aviso"
+            ]
+        ]
+    },
+    {
+        "id": "fn_estado_inicial",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Preencher campos",
+        "func": "// Preenche os campos e o resumo ao abrir/implantar.\nconst e = (msg.payload && msg.payload[0] && msg.payload[0].estado) || {};\nconst cfg = e.configuracao || {}, ctx = e.contexto || {};\nif (ctx.produto) global.set('contexto', ctx);\nconst campos = Object.assign(flow.get('campos') || {}, { validade_min: 15 });\nconst valores = { ur_max: cfg.ur_max, histerese: cfg.histerese, limiar_db: cfg.limiar_db, banda_db: cfg.banda_db,\n    produto: ctx.produto, lote_producao: ctx.lote_producao, lote_capsula: ctx.lote_capsula, lote_po: ctx.lote_po };\nfor (const [k, v] of Object.entries(valores)) if (v !== undefined && v !== null) campos[k] = v;\nflow.set('campos', campos);\nconst n = (k) => (campos[k] === undefined ? null : { payload: campos[k] });\nreturn [n('ur_max'), n('histerese'), n('limiar_db'), n('banda_db'), n('validade_min'),\n        n('produto'), n('lote_producao'), n('lote_capsula'), n('lote_po'),\n        { payload: cfg.versao ? 'v' + cfg.versao + ': liga ' + cfg.ur_max + ' %UR, histerese ' + cfg.histerese +\n            ' pp, operando >= ' + cfg.limiar_db + ' dBFS' : 'sem configuração ativa' },\n        { payload: 'aguardando a próxima telemetria' },\n        { payload: e.disponibilidade ? e.disponibilidade.estado + ' (última mensagem registrada)' : 'sem registro' },\n        { payload: e.ultima_confirmacao ? e.ultima_confirmacao.tipo + ' ' + e.ultima_confirmacao.cmd_id + ': ' +\n            (e.ultima_confirmacao.aceito ? 'aceito' : 'RECUSADO') + ' (' + e.ultima_confirmacao.motivo + ')' : 'sem registro' }];",
+        "outputs": 13,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1110,
+        "y": 960,
+        "wires": [
+            [
+                "ui_ur_max"
+            ],
+            [
+                "ui_histerese"
+            ],
+            [
+                "ui_limiar"
+            ],
+            [
+                "ui_banda"
+            ],
+            [
+                "ui_validade"
+            ],
+            [
+                "ui_produto"
+            ],
+            [
+                "ui_lote"
+            ],
+            [
+                "ui_lote_capsula"
+            ],
+            [
+                "ui_lote_po"
+            ],
+            [
+                "ui_txt_config"
+            ],
+            [
+                "ui_txt_leitura"
+            ],
+            [
+                "ui_txt_disp"
+            ],
+            [
+                "ui_txt_conf"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_admin_out",
+        "type": "mqtt out",
+        "z": "aba_admin",
+        "name": "Admin -> ESP32 (retain conforme o topico)",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_local",
+        "x": 1400,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "dbg_admin",
+        "type": "debug",
+        "z": "aba_admin",
+        "name": "Admin publicou",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1380,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "link_painel_in",
+        "type": "link in",
+        "z": "aba_admin",
+        "name": "mensagens recebidas",
+        "links": [
+            "link_painel_out"
+        ],
+        "x": 735,
+        "y": 1060,
+        "wires": [
+            [
+                "fn_painel"
+            ]
+        ]
+    },
+    {
+        "id": "fn_painel",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Atualizar resumo",
+        "func": "// Atualiza o resumo do Admin com as mensagens recebidas (mesma assinatura da ingestao).\nconst d = msg.dados || {};\nconst fmt = (x, u) => (x === null || x === undefined ? 'n/d' : x + u);\nif (msg.canal === 'telemetria') {\n    return [{ payload: (d.clima_valido ? fmt(d.umidade_pct, ' %UR') + ', ' + fmt(d.temperatura_c, ' °C') : 'sensor de clima em falha') +\n        ' | ruido ' + fmt(d.nivel_ruido, ' ' + (d.unidade_ruido || '')) + ' (não é dB SPL)' +\n        ' | máquina ' + d.estado_maquina + ' (' + d.fonte_estado + ') | ' + d.modo +\n        ' | rele ' + (d.desumidificador_comandado ? 'ligado' : 'desligado') + ' (' + d.motivo_rele + ')' +\n        ' | ' + d.produto + ' / ' + d.lote_producao }, null, null, null];\n}\nif (msg.canal === 'disponibilidade') {\n    return [null, { payload: d.estado + (d.boot_id ? ' (boot ' + d.boot_id + ')' : '') }, null, null];\n}\nif (msg.canal === 'confirmacoes') {\n    const texto = d.tipo + ' ' + d.cmd_id + ': ' + (d.aceito ? 'aceito' : 'RECUSADO') + ' (' + d.motivo + ')';\n    return [null, null, { payload: texto }, d.aceito ? null : { payload: 'ESP32 recusou ' + texto }];\n}\nif (msg.canal === 'eventos' && d.tipo === 'CONFIG_APLICADA') {\n    return [null, null, { payload: 'CONFIG_APLICADA v' + d.config_version + ': liga ' + d.ur_liga + ', desliga ' + d.ur_desliga +\n        ' %UR; operando >= ' + d.limiar_operando_dbfs + ', parado <= ' + d.limiar_parado_dbfs + ' dBFS' }, null];\n}\nreturn null;",
+        "outputs": 4,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 900,
+        "y": 1060,
+        "wires": [
+            [
+                "ui_txt_leitura"
+            ],
+            [
+                "ui_txt_disp"
+            ],
+            [
+                "ui_txt_conf"
+            ],
+            [
+                "ui_aviso"
+            ]
+        ]
+    },
+    {
+        "id": "link_resultado_in",
+        "type": "link in",
+        "z": "aba_admin",
+        "name": "resultados da gravacao",
+        "links": [
+            "link_resultado_out"
+        ],
+        "x": 735,
+        "y": 1140,
+        "wires": [
+            [
+                "fn_alerta"
+            ]
+        ]
+    },
+    {
+        "id": "fn_alerta",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Alerta aberto -> aviso",
+        "func": "// Alerta aberto pelas funcoes SQL vira notificacao no painel (tambem fica em alertas_emitidos).\nconst r = msg.payload && msg.payload.resultado;\nif (typeof r === 'string' && /alerta \\w+ aberto/.test(r)) {\n    return { payload: r.replace(/^.*?; /, '') + ' (' + msg.payload.topico + ')' };\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 1140,
+        "wires": [
+            [
+                "ui_aviso"
+            ]
+        ]
+    },
+    {
+        "id": "ui_txt_leitura",
+        "type": "ui-text",
+        "z": "aba_admin",
+        "group": "ui_grupo_estado",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "Última leitura",
+        "label": "Última leitura",
+        "format": "{{msg.payload}}",
+        "value": "payload",
+        "valueType": "msg",
+        "layout": "col-center",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "wrapText": true,
+        "className": "",
+        "x": 1250,
+        "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "ui_txt_disp",
+        "type": "ui-text",
+        "z": "aba_admin",
+        "group": "ui_grupo_estado",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "Disponibilidade",
+        "label": "Disponibilidade",
+        "format": "{{msg.payload}}",
+        "value": "payload",
+        "valueType": "msg",
+        "layout": "col-center",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "wrapText": true,
+        "className": "",
+        "x": 1250,
+        "y": 1060,
+        "wires": []
+    },
+    {
+        "id": "ui_txt_conf",
+        "type": "ui-text",
+        "z": "aba_admin",
+        "group": "ui_grupo_estado",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "Última confirmação",
+        "label": "Última confirmação",
+        "format": "{{msg.payload}}",
+        "value": "payload",
+        "valueType": "msg",
+        "layout": "col-center",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "wrapText": true,
+        "className": "",
+        "x": 1250,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "ui_txt_config",
+        "type": "ui-text",
+        "z": "aba_admin",
+        "group": "ui_grupo_config",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "name": "Configuração ativa no banco",
+        "label": "Configuração ativa no banco",
+        "format": "{{msg.payload}}",
+        "value": "payload",
+        "valueType": "msg",
+        "layout": "col-center",
+        "style": false,
+        "font": "",
+        "fontSize": 14,
+        "color": "#717171",
+        "wrapText": true,
+        "className": "",
+        "x": 1250,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "ui_aviso",
+        "type": "ui-notification",
+        "z": "aba_admin",
+        "ui": "ui_base",
+        "position": "top right",
+        "colorDefault": true,
+        "color": "#000000",
+        "displayTime": "6",
+        "showCountdown": true,
+        "outputs": 0,
+        "allowDismiss": true,
+        "dismissText": "Fechar",
+        "allowConfirm": false,
+        "confirmText": "OK",
+        "raw": false,
+        "className": "",
+        "name": "Aviso no painel",
+        "x": 1400,
+        "y": 1140,
+        "wires": []
+    }
+]

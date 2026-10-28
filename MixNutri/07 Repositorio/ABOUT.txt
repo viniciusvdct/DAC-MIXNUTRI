@@ -1,1 +1,0 @@
-Hardware e firmware da equipe 1 no Desafio 10 MixNutri — SENAI-MS/UCDB. ESP32 para monitorar temperatura e umidade, controlar o desumidificador e identificar possíveis paradas, com simulação no Wokwi e comunicação MQTT com as outras equipes.

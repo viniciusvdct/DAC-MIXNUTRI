@@ -1,15 +1,22 @@
-# Obsidian e macOS
-.obsidian/
+# macOS
 .DS_Store
-.trash/
 
-# Credenciais locais (publicar apenas modelos .env.exemplo)
+# Credenciais locais (publicar apenas o modelo .env.exemplo)
 .env
 _env
-
-# Pacotes gerados localmente (o conteudo ja esta nas pastas)
-*.zip
 
 # Saidas de compilacao (PlatformIO / Wokwi CLI)
 .pio/
 *.chip.wasm
+
+# Arquivos que o Node-RED cria ao rodar (item 3)
+item3-integracao/node-red/dados/.config.*.json
+item3-integracao/node-red/dados/.config.*.json.backup
+item3-integracao/node-red/dados/.flows*.json.backup
+item3-integracao/node-red/dados/.flows_cred*.json.backup
+item3-integracao/node-red/dados/.sessions.json
+item3-integracao/node-red/dados/lib/
+item3-integracao/node-red/dados/node_modules/
+item3-integracao/node-red/dados/package.json
+item3-integracao/node-red/dados/package-lock.json
+item3-integracao/node-red/dados/context/

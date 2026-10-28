@@ -27,6 +27,25 @@ O último comando reproduz as mensagens reais do firmware (dados sintéticos do 
 
 Tudo fica só em 127.0.0.1. O PostgreSQL usa a porta 55432 no computador. Para ligar a leitura Modbus com o simulador: `MODBUS_HABILITADO=true docker compose --profile modbus up -d`.
 
+## Receber o firmware do Wokwi ao vivo (teste ponta a ponta)
+
+O Wokwi web só alcança a internet, não o seu computador. Para o firmware rodando no Wokwi chegar a este kit, ligue a ponte do Mosquitto com o broker público onde o firmware publica:
+
+```bash
+PONTE_BROKER=broker.hivemq.com:1883 docker compose up -d mosquitto
+```
+
+Depois, abra o [projeto do item 2 no Wokwi](https://wokwi.com/projects/479080199406642177) e clique em ▶. A telemetria passa a aparecer no banco e no Grafana. Os comandos, a configuração e o contexto enviados pelo Admin chegam ao ESP32 **sem retain**, para nada ficar retido no broker público.
+
+Roteiro do teste do item 5:
+
+1. No Admin, defina produto e lote.
+2. No Wokwi, suba a umidade do SHT31 acima do limite: o relé liga na hora, e depois de 1 minuto acima do limite abre o alerta `UR_ALTA`.
+3. Baixe o tom do chip `som` para 0%: em 5 s registra-se a parada, e com a UR ainda alta abre o alerta `UR_ALTA_E_PARADA`, que aparece na linha do tempo do Grafana.
+4. No Admin, mande MANUAL e depois AUTO e veja as confirmações.
+
+Só use dados sintéticos: qualquer pessoa pode ler o broker público. A rede precisa liberar a saída na porta 1883; algumas redes de universidade e de empresa bloqueiam. Para desligar a ponte: `docker compose up -d mosquitto`, sem a variável.
+
 ## Conteúdo
 
 | Pasta / arquivo | Papel |
@@ -52,7 +71,8 @@ Testado em 28/10/2026 com as mensagens do item 2:
 
 **Ainda não testado:**
 
-- ESP32 de verdade ligado a este broker. O Wokwi web só alcança um broker local com o gateway pago.
+- Firmware ao vivo pela ponte: a configuração da ponte foi conferida, mas o teste ponta a ponta não rodou porque a rede usada bloqueava a porta 1883.
+- ESP32 físico ligado a este broker.
 - Envio de alertas por Telegram ou e-mail.
 
 **Limites:** dados sintéticos; ruído em dBFS, não dB SPL; parâmetros didáticos. Parada inferida não mede quebra de cápsula, e correlação não prova causa.

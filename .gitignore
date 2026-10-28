@@ -4,6 +4,8 @@
 # Credenciais locais (publicar apenas o modelo .env.exemplo)
 .env
 _env
+# Wi-Fi e broker do ESP32 de verdade (o modelo e config_local.h.exemplo)
+item2-firmware/firmware/config_local.h
 
 # Python
 __pycache__/

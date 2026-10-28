@@ -1,0 +1,13 @@
+// Configuracao do ESP32 de verdade. Copie este arquivo para config_local.h (mesma pasta do
+// sketch.ino), preencha e compile. config_local.h fica fora do git: tem as senhas do Wi-Fi e
+// do broker. Com ele presente, o sketch ignora config_wokwi.h.
+#pragma once
+#define MIXNUTRI_SIMULACAO 0  // 0 = dados reais (origem "real", fonte acustica "audio")
+static const char *WIFI_SSID = "NOME_DA_REDE_2_4_GHZ", *WIFI_SENHA = "SENHA_DO_WIFI";
+static const int WIFI_CANAL = 0;  // 0 = procurar o canal automaticamente
+// Mosquitto da equipe 2 (IP ou nome na rede da sala).
+static const char *MQTT_HOST = "192.168.0.10";
+static const uint16_t MQTT_PORTA = 1883;
+static const char *MQTT_USUARIO = "USUARIO_DO_ESP32", *MQTT_SENHA = "SENHA_DO_ESP32";
+static const char *TOPICO_BASE = "mixnutri/sala01";
+static const char *DEVICE_ID = "sala01-esp32", *SALA_ID = "sala01";

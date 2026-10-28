@@ -34,7 +34,7 @@ Cada pasta tem o seu README com o passo a passo.
 
 Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo vai na protoboard, alimentado pelo USB.
 
-É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, só é preciso trocar no topo do `sketch.ino` o nome e a senha do Wi-Fi, o endereço do broker e `MIXNUTRI_SIMULACAO` para `0`. A gravação na placa física ainda não foi testada.
+É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, basta copiar `config_local.h.exemplo` para `config_local.h` e preencher o Wi-Fi e o broker; esse arquivo fica fora do git. A gravação na placa física ainda não foi testada.
 
 | Qtd. | Componente | Para quê |
 | --- | --- | --- |
@@ -104,8 +104,8 @@ Para integrar:
 | Entrega | Situação |
 | --- | --- |
 | **Item 1:** circuito no Wokwi e script SQL | Pronto (versão 2), testado no Wokwi e no PostgreSQL |
-| **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens |
-| **Item 3:** kit de integração | Proposta da equipe 1 para a equipe 2 avaliar; testado com as mensagens reais do item 2 |
+| **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens. Cliente Modbus testado por rede contra o simulador |
+| **Item 3:** kit de integração | Proposta da equipe 1 para a equipe 2 avaliar; testado com as mensagens reais do item 2. Tem ponte opcional para receber o firmware do Wokwi ao vivo |
 | **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3 |
 | **Montagem física** | Componentes e ligações definidos, iguais aos do Wokwi; ainda não montada |
 

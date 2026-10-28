@@ -13,20 +13,16 @@
 #include <esp_system.h>
 #include <time.h>
 #include "logica.h"
+#include "modbus_cliente.h"
 using namespace mixnutri;
 
 // ================================================================ implantacao
-#define MIXNUTRI_SIMULACAO 1  // 1 no Wokwi: origem "simulacao" e fonte acustica "sintetico"
-static const char *WIFI_SSID = "Wokwi-GUEST", *WIFI_SENHA = "";
-static const int WIFI_CANAL = 6;  // acelera a conexao no Wokwi; usar 0 no hardware real
-// Broker publico so para demonstracao com dados sinteticos. Trocar pelo Mosquitto da
-// equipe 2. No Wokwi, broker local exige o gateway privado (host.wokwi.internal).
-// String vazia desliga o MQTT: tudo fica retido na fila da Flash.
-static const char *MQTT_HOST = "broker.hivemq.com";
-static const uint16_t MQTT_PORTA = 1883;
-static const char *MQTT_USUARIO = nullptr, *MQTT_SENHA = nullptr;
-static const char *TOPICO_BASE = "mixnutri/sala01";
-static const char *DEVICE_ID = "sala01-esp32", *SALA_ID = "sala01";
+// Rede e identificacao: config_local.h no ESP32 de verdade (fora do git); senao, Wokwi.
+#if __has_include("config_local.h")
+#include "config_local.h"
+#else
+#include "config_wokwi.h"
+#endif
 #if MIXNUTRI_SIMULACAO
 static const char *ORIGEM = "simulacao", *FONTE_SOM = "sintetico";
 #else
@@ -90,7 +86,7 @@ static LeituraModbus modbusUltima = {false, 0, 0, 0, 0};
 // ================================================================ estado local
 static Config cfg;
 static Preferences prefs;
-static char bootId[16];
+static char bootId[24];
 static char produto[33] = "NAO_INFORMADO", loteProducao[33] = "NAO_INFORMADO";
 static char loteCapsula[33] = "", lotePo[33] = "";
 static uint32_t seqTelemetria = 0, seqEvento = 0, comandosSerial = 0;
@@ -561,29 +557,11 @@ static void aoReceberMqtt(char *t, uint8_t *p, unsigned int n) {
   memcpy(entradaRede.payload, p, n); entradaRede.payload[n] = '\0';
   if (xQueueSend(qEntrada, &entradaRede, 0) != pdTRUE) ++descartes;
 }
-// Le um registrador holding (FC03). Retorna 0, excecao Modbus (>0) ou erro local (<0).
+// Le um registrador holding (FC03) do CLP com o cliente de modbus_cliente.h.
+struct RelogioEsp { uint32_t agoraMs() { return millis(); } void esperar1ms() { vTaskDelay(1); } };
+static RelogioEsp relogioEsp;
 static int modbusLer(const Config &c, uint16_t reg, uint16_t &valor) {
-  if (!tcpModbus.connected()) {
-    tcpModbus.stop();
-    if (!tcpModbus.connect(c.modbus_host, c.modbus_porta, 1000)) return -10;
-  }
-  uint8_t q[12], r[16];
-  const uint16_t tid = ++modbusTid;
-  modbusMontarFC03(q, tid, c.modbus_unit, reg, 1);
-  if (tcpModbus.write(q, sizeof q) != sizeof q) { tcpModbus.stop(); return -11; }
-  size_t n = 0, esperado = 11;
-  const uint32_t t0 = millis();
-  while (n < esperado && (uint32_t)(millis() - t0) < 1000) {
-    if (tcpModbus.available()) {
-      r[n++] = (uint8_t)tcpModbus.read();
-      if (n == 8 && (r[7] & 0x80)) esperado = 9;
-    } else {
-      vTaskDelay(1);
-    }
-  }
-  const int res = modbusLerRespostaFC03(r, n, tid, c.modbus_unit, 1, &valor);
-  if (res < 0) tcpModbus.stop();
-  return res;
+  return modbusLerRegistrador(tcpModbus, relogioEsp, c.modbus_host, c.modbus_porta, c.modbus_unit, reg, modbusTid, valor);
 }
 static void tarefaRede(void *) {
   WiFi.mode(WIFI_STA);
@@ -685,7 +663,8 @@ void setup() {
   prefs.begin("mixnutri", false);
   const uint32_t boot = prefs.getUInt("boot", 0) + 1;
   prefs.putUInt("boot", boot);
-  snprintf(bootId, sizeof bootId, "b%lu", (unsigned long)boot);
+  // Contador + aleatorio: boot_id unico mesmo se a NVS for apagada (o Wokwi apaga a cada execucao).
+  snprintf(bootId, sizeof bootId, "b%lu-%04x", (unsigned long)boot, (unsigned)(esp_random() & 0xffff));
   carregarConfig();
   carregarContexto();
   for (int i = 0; i < T_TOTAL; ++i) snprintf(topico[i], sizeof topico[i], "%s/%s", TOPICO_BASE, SUFIXO[i]);

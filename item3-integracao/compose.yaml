@@ -13,6 +13,8 @@ services:
       MQTT_ESP32_SENHA: ${MQTT_ESP32_SENHA:?defina no .env}
       MQTT_BACKEND_USUARIO: ${MQTT_BACKEND_USUARIO:?defina no .env}
       MQTT_BACKEND_SENHA: ${MQTT_BACKEND_SENHA:?defina no .env}
+      # Opcional: ponte com broker publico para testar com o Wokwi (ex.: broker.hivemq.com:1883).
+      PONTE_BROKER: ${PONTE_BROKER:-}
     volumes:
       - ./mosquitto:/mixnutri:ro
       - mosquitto-dados:/mosquitto/data

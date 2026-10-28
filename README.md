@@ -18,14 +18,51 @@ O controle de umidade acontece no próprio ESP32. A arquitetura foi pensada para
 
 ## Hardware e simulação
 
-| Componente | Função |
-| --- | --- |
-| ESP32 | Lê os sensores, executa as regras e se comunica pela rede. |
-| SHT31 | Fornece temperatura e umidade. |
-| Entrada de som | Ajuda a distinguir funcionamento e possível parada da máquina. |
-| Relé e LED | Representam o acionamento do desumidificador durante a simulação. |
+**Para simular no Wokwi, não é necessário comprar componentes.** O circuito dos itens 1 e 2 usa um ESP32 DevKit V1, um modelo parcial do SHT31, um gerador de som sintético e um relé que aciona um LED. O comportamento dos sensores e do equipamento físico ainda precisa ser avaliado em bancada e em campo.
 
-O desenvolvimento começa no **Wokwi**. Na versão simulada, usamos um modelo parcial do SHT31 e um sinal sonoro sintético. Isso permite testar a lógica; o comportamento dos sensores e do equipamento físico ainda precisa ser avaliado em campo.
+### Componentes para uma bancada física
+
+A lista abaixo é uma **proposta para um nó de uma sala**, baseada no circuito e nas interfaces do firmware atual. Os modelos comerciais são referências para seleção; ainda não foram testados fisicamente neste projeto.
+
+| Quantidade | Componente específico | Função e especificação |
+| --- | --- | --- |
+| 1 | **DOIT ESP32 DevKit V1, com ESP32-WROOM-32 e Flash de 4 MB** | Placa principal, com Wi-Fi e USB para programação. É a referência correspondente ao ESP32 clássico usado na simulação. |
+| 1 | **Módulo SHT31-D/SHT31-DIS com interface I²C**, por exemplo Adafruit **2857** | Mede temperatura e umidade. Alimentar em **3,3 V** e manter endereço **0x44**, conforme o firmware. Escolher módulo pronto, com pinos acessíveis. |
+| 1 | **Módulo de microfone de eletreto com MAX9814 e saída analógica**, por exemplo Adafruit **1713** | Referência para substituir o som sintético. Alimentação em **3,3 V**; saída OUT ligada ao ADC do ESP32. A seleção depende de testes para distinguir máquina ligada e parada. |
+| 1 | **Módulo relé de 1 canal, ativo em HIGH, com entrada compatível com lógica de 3,3 V** | Referência de bancada: **Seeed Grove Relay V1.2**, alimentado em **5 V**. Deve incluir o circuito de acionamento da bobina. Um módulo equivalente precisa atender à mesma lógica e tensão de entrada. |
+| 1 | **LED verde de 5 mm** | Representa o desumidificador na bancada, ligado pelos contatos normalmente abertos do relé. |
+| 1 | **Resistor de 330 Ω, ¼ W** | Limita a corrente do LED verde. |
+| Até 2 | **Resistores de 4,7 kΩ, ¼ W** | Pull-ups de SDA e SCL para 3,3 V, presentes na simulação. No físico, acrescentar somente se o módulo não tiver pull-ups adequados; o Adafruit 2857 já os inclui. |
+| 1 | **Protoboard de aproximadamente 830 pontos** | Montagem inicial dos módulos e do LED. |
+| 1 kit | **Jumpers macho–macho e macho–fêmea** | Interligação da placa e dos módulos. Para o Grove, incluir cabo adaptador **Grove para pinos de 2,54 mm**. |
+| 1 | **Cabo USB-A para micro-USB com transmissão de dados** | Programação e alimentação da placa de referência pelo computador. |
+| 1, se operar sem computador | **Fonte USB regulada de 5 V / 1 A** | Referência inicial para alimentar a bancada; confirmar o consumo na montagem. Não alimenta o desumidificador. |
+
+O LED azul de rede usa o **GPIO2**, já integrado na placa de referência. Se a placa adquirida não o tiver, acrescentar um LED azul e um resistor de 330 Ω.
+
+Referências técnicas dos componentes: [placa DOIT ESP32 DevKit V1](https://docs.zephyrproject.org/latest/boards/others/doit_esp32_devkit_v1/doc/index.html), [módulo SHT31-D](https://www.adafruit.com/product/2857), [microfone MAX9814](https://www.adafruit.com/product/1713) e [Grove Relay, incluindo diferenças entre versões](https://wiki.seeedstudio.com/Grove-Relay/).
+
+### Pinagem usada no projeto
+
+| Sinal | Pino do ESP32 | Ligação |
+| --- | --- | --- |
+| SHT31 — SDA | **GPIO21** | Dados I²C, com pull-up para 3,3 V. |
+| SHT31 — SCL | **GPIO22** | Clock I²C, com pull-up para 3,3 V. |
+| Microfone — OUT | **GPIO34 / ADC** | Entrada analógica; sinal dentro da faixa de 0 a 3,3 V. |
+| Relé — IN/SIG | **GPIO26** | **HIGH liga / LOW desliga** no circuito atual. |
+| Relé — VCC e GND | **5 V da alimentação da bancada e GND comum** | Alimentação do módulo de referência; IN/SIG recebe apenas a lógica de 3,3 V. |
+| LED de rede | **GPIO2** | Indicador integrado à placa. |
+| Alimentação dos sensores | **3V3 e GND** | SHT31 e microfone com terra comum ao ESP32 e ao módulo relé. |
+
+Na carga demonstrativa, a ligação é **3V3 → contato normalmente aberto do relé → resistor de 330 Ω → LED verde → GND**. No módulo simulado, isso usa COM–NO; o contato NC fica livre. A pinagem completa está na [documentação do circuito](MixNutri/06%20Entregas/Item%201/Pinagem%20e%20componentes%20do%20item%201.md).
+
+### O que ainda precisa ser definido para o equipamento real
+
+- **Captação de som:** o MAX9814 tem controle automático de ganho, que altera a amplitude; será necessário caracterizar seu comportamento e ajustar os limites de detecção. O INMP441 citado como alternativa usa I²S e exigiria outra interface de aquisição no firmware atual, que lê áudio analógico no GPIO34. O resultado atual em dBFS não é uma medição calibrada de dB SPL.
+- **Acionamento do desumidificador:** ainda faltam modelo, tensão, corrente de partida e interface de comando. Esses dados determinam relé/contator ou SSR, proteções e montagem em caixa apropriada. O relé de bancada não está dimensionado para essa carga industrial.
+- **Infraestrutura compartilhada:** é necessária uma rede Wi-Fi de **2,4 GHz** e um computador ou servidor para MQTT e os serviços das outras equipes. O ESP32 já oferece Wi-Fi, e o armazenamento local usa a Flash interna via LittleFS; o desenho atual não exige cartão SD nem módulo Ethernet. A alternativa Modbus TCP depende de acesso ao controlador e não implica um adaptador RS-485.
+
+A passagem ao físico também exige configurar a rede e validar sensores, alimentação e limites de controle. Esta lista documenta a montagem proposta; os resultados existentes continuam sendo os da simulação.
 
 ## Como nossa parte conversa com as outras equipes
 

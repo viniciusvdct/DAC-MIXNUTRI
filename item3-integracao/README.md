@@ -5,6 +5,7 @@ O lado do servidor já funcionando com o firmware do [item 2](../item2-firmware)
 **É uma proposta da equipe 1 para as equipes 2 e 3 avaliarem.** Não substitui a entrega delas.
 
 - [Guia de integração para a equipe 2](docs/guia-integracao-equipe2.md): o que adotar e o que mudar, arquivo por arquivo.
+- [Inspeções de cápsulas](docs/guia-integracao-equipe2.md#inspeções-de-cápsulas): migração, formulário do Admin e roteiro no Grafana.
 - [Contrato MQTT v2](docs/contrato-mqtt-v2.md): tudo o que o firmware publica e aceita.
 
 ## Rodar
@@ -35,7 +36,7 @@ O último comando reproduz as mensagens reais do firmware (dados sintéticos do 
 | Endereço | O que é | Login |
 | --- | --- | --- |
 | http://127.0.0.1:3000 | Grafana, painel "MixNutri sala01" | `GRAFANA_ADMIN_*` do `.env` |
-| http://127.0.0.1:1880/dashboard/admin | Painel Admin: limites, histerese, limiar de ruído, modo, produto e lote | `NODERED_ADMIN_*` |
+| http://127.0.0.1:1880/dashboard/admin | Painel Admin: limites, histerese, limiar de ruído, modo, produto, lote e inspeções | `NODERED_ADMIN_*` |
 | http://127.0.0.1:1880 | Editor do Node-RED | `NODERED_ADMIN_*` |
 
 Grafana, Node-RED e PostgreSQL ficam só em 127.0.0.1. O Mosquitto também fica local até que `MQTT_BIND` seja definido para o IPv4 da rede do ESP32. O PostgreSQL usa a porta 55432 no computador. Para ligar a leitura Modbus com o simulador: `MODBUS_HABILITADO=true docker compose --profile modbus up -d`.
@@ -85,9 +86,10 @@ Só use dados sintéticos: qualquer pessoa pode ler o broker público. A rede pr
 | `.env.exemplo` | Modelo de credenciais sem senhas. O `.env` fica fora do git |
 | `mosquitto/` | Sem acesso anônimo; um usuário para o ESP32 e outro para o backend, com ACL por tópico |
 | `postgres/02_integracao.sql` | Roda sobre o schema do item 1, que entra sem alteração. Traz registro bruto com deduplicação, funções de gravação, apoio ao Admin e papéis com o mínimo de privilégio |
-| `node-red/dados/flows.json` | Aba "MixNutri sala01": recebe `mixnutri/sala01/#` e faz a leitura Modbus (desligada por padrão). Aba "Admin v2": configuração versionada, comando sem retain, produto e lote |
+| `postgres/04_inspecoes_capsulas.sql` | Registro de inspeções e associação às leituras ambientais |
+| `node-red/dados/flows.json` | Aba "MixNutri sala01": recebe `mixnutri/sala01/#` e faz a leitura Modbus (desligada por padrão). Aba "Admin v2": configuração versionada, comando sem retain, produto, lote e formulário de inspeção |
 | `node-red/dados/settings.js` | Login no editor, nas páginas e no socket.io do Admin |
-| `grafana/` | Datasource somente leitura e o painel: UR/temperatura, ruído em dBFS ("não é dB SPL"), relé e modo, paradas por fonte e alertas |
+| `grafana/` | Datasource somente leitura e o painel: UR/temperatura, ruído em dBFS ("não é dB SPL"), relé e modo, paradas por fonte, alertas e qualidade das cápsulas |
 | `modbus-simulador/` | `server.py` e `Dockerfile` da outra equipe, sem alteração |
 | `ferramentas/` | Reprodução do log, cenário de reinício e testes de SQL, ACL, Admin e Grafana |
 

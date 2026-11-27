@@ -56,7 +56,7 @@ Serve para uma pessoa ou uma IA retomar o projeto sem reler tudo. Não coloque s
 - `Projeto_integrado/` da versão ubuntu copiado por cima do repositório; conferido com `diff -r`
   (idêntico). Entram: guia de montagem física, scripts PowerShell, `MQTT_BIND`, Node-RED Debian,
   correções `msg.dados` (Admin) e filtro de tempo do Grafana.
-- Nada commitado ainda.
+- Commit `833364b` (só a cópia da versão ubuntu, sem alterações).
 
 ### 26/11/2026 — correções para a simulação ficar estável
 
@@ -146,9 +146,19 @@ Observações:
   4 relé/modo, 5 linha do tempo de paradas, 6 paradas, 7 alertas.
 - Para captura em resolução maior: abrir a mesma URL num navegador com janela grande.
 
+### 27/11/2026 — commits e PR
+
+- Branch `atualizacao-entrega-ubuntu` enviada ao GitHub com dois commits: `833364b` (versão ubuntu sem
+  alterações) e `bd6c929` (correções, guias, progresso e capturas).
+- PR aberto para o `main`: https://github.com/viniciusvdct/DAC-MIXNUTRI/pull/1 (sem conflitos; o
+  repositório não tem CI).
+- Ambiente local deixado no ar: projeto Docker `mixnutri-equipe1` com `PONTE_BROKER` ligado no `.env`
+  local. Para desligar a ponte: apagar o valor de `PONTE_BROKER` e `docker compose up -d mosquitto`;
+  para parar tudo: `docker compose --profile modbus down` (mantém os volumes).
+
 ## Pendências
 
-1. Commit das mudanças na branch `atualizacao-entrega-ubuntu` e PR para o `main`.
+1. Revisar e mergear o PR #1 (equipe 1).
 2. Opcional no firmware (exige atualizar o projeto do Wokwi): responder `ja_aplicada` só se os valores
    forem iguais; contador `descartes` atômico; padrão Modbus 3/5 como no simulador.
 3. Depois: hardware físico — roteiro macOS/Linux para gravar (`pio run -t upload --upload-port ...`),

@@ -21,6 +21,8 @@ Somos a **equipe 1, responsável pelo circuito eletrônico e pela programação 
 
 Cada pasta tem o seu README com o passo a passo.
 
+Para montar e ligar o kit físico ao banco e aos gráficos, siga o [guia de montagem física](GUIA_MONTAGEM_FISICA.md).
+
 ## O que o ESP32 faz
 
 - **Mede temperatura e umidade** com o sensor SHT31.
@@ -34,7 +36,7 @@ Cada pasta tem o seu README com o passo a passo.
 
 Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo vai na protoboard, alimentado pelo USB.
 
-É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, basta copiar `config_local.h.exemplo` para `config_local.h` e preencher o Wi-Fi e o broker; esse arquivo fica fora do git. A gravação na placa física ainda não foi testada.
+É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, o guia de montagem usa o script de preparação da rede, que cria `config_local.h` localmente. A gravação na placa física ainda não foi testada.
 
 | Qtd. | Componente | Para quê |
 | --- | --- | --- |

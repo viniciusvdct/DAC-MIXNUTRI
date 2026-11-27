@@ -17,6 +17,13 @@ docker compose up -d --build
 python3 -I ferramentas/reproduzir_log.py ../item2-firmware/exemplos/mqtt-exemplo.log ferramentas/cenario-boot-fecha-parada.log
 ```
 
+O Dockerfile do Node-RED usa `nodered/node-red:4.1.16-debian` (Node.js 20 nesta tag).
+Em 25/11/2026, a variante Alpine `4.1.16-22-minimal` falhou com código 139
+até em `node --version` durante o build no Docker Desktop deste computador,
+embora funcionasse em um contêiner normal. A variante Debian concluiu a instalação
+de PostgreSQL 0.16.2 e Dashboard 2.0 1.29.0. As variantes são descritas no
+[repositório oficial das imagens](https://github.com/node-red/node-red-docker#image-variations).
+
 O último comando reproduz as mensagens reais do firmware (dados sintéticos do Wokwi) mais um cenário de reinício, para o painel ter dados. Depois:
 
 | Endereço | O que é | Login |
@@ -25,7 +32,25 @@ O último comando reproduz as mensagens reais do firmware (dados sintéticos do 
 | http://127.0.0.1:1880/dashboard/admin | Painel Admin: limites, histerese, limiar de ruído, modo, produto e lote | `NODERED_ADMIN_*` |
 | http://127.0.0.1:1880 | Editor do Node-RED | `NODERED_ADMIN_*` |
 
-Tudo fica só em 127.0.0.1. O PostgreSQL usa a porta 55432 no computador. Para ligar a leitura Modbus com o simulador: `MODBUS_HABILITADO=true docker compose --profile modbus up -d`.
+Grafana, Node-RED e PostgreSQL ficam só em 127.0.0.1. O Mosquitto também fica local até que `MQTT_BIND` seja definido para o IPv4 da rede do ESP32. O PostgreSQL usa a porta 55432 no computador. Para ligar a leitura Modbus com o simulador: `MODBUS_HABILITADO=true docker compose --profile modbus up -d`.
+
+## Conectar o ESP32 físico
+
+Quando souber qual rede será usada, conecte este computador e o ESP32 à mesma rede local. O ESP32 precisa de Wi-Fi de 2,4 GHz. A rede deve permitir comunicação entre dispositivos (sem isolamento de clientes ou rede de convidados).
+
+No PowerShell, com o Docker Desktop iniciado, execute a partir desta pasta:
+
+```powershell
+.\ferramentas\preparar_esp32.ps1
+```
+
+O script identifica o IPv4 local, pede o nome e a senha do Wi-Fi sem mostrar a senha, grava `../item2-firmware/firmware/config_local.h` e configura o Mosquitto para escutar nesse IP. As credenciais MQTT vêm do `.env` local. Se houver mais de uma rede local ativa, escolha explicitamente com `-BrokerIp 192.168.x.x`. O script não copia senhas para o repositório.
+
+No Windows, abra o PowerShell **como Administrador** e use `-ConfigureFirewall` para criar uma regra de entrada TCP 1883 limitada ao IP escolhido e à sub-rede local. Depois grave o firmware conforme o [guia do item 2](../item2-firmware/README.md). O Grafana fica em `http://127.0.0.1:3000`; o Admin, em `http://127.0.0.1:1880/dashboard/admin`.
+
+Se o IPv4 do computador mudar, execute o script novamente com `-Force`, reinicie o ESP32 após gravar o firmware e atualize a regra do firewall com `-ConfigureFirewall`. Reservar o IP do computador no roteador evita regravações. A comunicação MQTT nesta configuração é local e sem TLS; use uma rede confiável. Não habilite `PONTE_BROKER` para o ESP32 físico.
+
+Confira no serial `FILA flash_ok=1` e `wifi=1 mqtt=1`, e no Grafana observe telemetrias novas marcadas como reais. O circuito físico, a qualidade do sinal do sensor de som e o comportamento do módulo relé precisam ser conferidos na montagem.
 
 ## Receber o firmware do Wokwi ao vivo (teste ponta a ponta)
 
@@ -69,6 +94,7 @@ Testado em 28/10/2026 com as mensagens do item 2:
 - Testes passando: SQL 8/8, ACL 5/5 e Admin 14/14. O Grafana respondeu às 9 consultas com dados.
 - Modbus testado com o simulador, incluindo parada do CLP e perda de comunicação.
 - **Ponta a ponta ao vivo (28/10/2026):** firmware no Wokwi → broker público → ponte → este kit. Todas as 40 telemetrias foram gravadas, sem lacuna. Contexto, configuração v8, MANUAL e AUTO, enviados pelo Admin, foram aceitos pelo ESP32. O roteiro do item 5 gerou UR alta, relé ligado, parada com produto e lote e os alertas `UR_ALTA`, `PARADA_MAQUINA` e `UR_ALTA_E_PARADA`. O fim da conexão gerou `DISPOSITIVO_OFFLINE`, tudo visível no Grafana.
+- **Rede local (06/11/2026):** broker publicado em `192.168.15.8:1883`, ACL 5/5 pelo IP da rede e uma telemetria sintética enviada por esse IP registrada no PostgreSQL. O firmware foi compilado para ESP32 Dev Module com a configuração de simulação e com um `config_local.h` fictício; a configuração fictícia foi removida após o teste.
 
 **Ainda não testado:**
 

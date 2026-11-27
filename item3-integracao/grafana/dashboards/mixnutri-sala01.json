@@ -12,7 +12,7 @@
   "graphTooltip": 1,
   "refresh": "30s",
   "schemaVersion": 41,
-  "version": 2,
+  "version": 3,
   "time": {
     "from": "now-6h",
     "to": "now"
@@ -107,6 +107,88 @@
         "includeAll": false,
         "hide": 0,
         "skipUrlSync": false
+      },
+      {
+        "name": "produto_inspecao",
+        "label": "Produto da inspeção",
+        "description": "Filtra a seção Qualidade das cápsulas pelo fim do período de produção.",
+        "current": {
+          "text": "All",
+          "value": "$__all",
+          "selected": true
+        },
+        "options": [],
+        "multi": true,
+        "includeAll": true,
+        "allValue": "''",
+        "hide": 0,
+        "skipUrlSync": false,
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "mixnutri-pg"
+        },
+        "refresh": 2,
+        "definition": "SELECT DISTINCT produto\nFROM mixnutri.inspecoes_capsulas\nWHERE fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\nORDER BY 1",
+        "query": "SELECT DISTINCT produto\nFROM mixnutri.inspecoes_capsulas\nWHERE fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\nORDER BY 1"
+      },
+      {
+        "name": "lote_inspecao",
+        "label": "Lote da inspeção",
+        "description": "Filtra a seção Qualidade das cápsulas pelo fim do período de produção.",
+        "current": {
+          "text": "All",
+          "value": "$__all",
+          "selected": true
+        },
+        "options": [],
+        "multi": true,
+        "includeAll": true,
+        "allValue": "''",
+        "hide": 0,
+        "skipUrlSync": false,
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "mixnutri-pg"
+        },
+        "refresh": 2,
+        "definition": "SELECT DISTINCT lote_producao\nFROM mixnutri.inspecoes_capsulas\nWHERE fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\nORDER BY 1",
+        "query": "SELECT DISTINCT lote_producao\nFROM mixnutri.inspecoes_capsulas\nWHERE fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\nORDER BY 1"
+      },
+      {
+        "name": "origem_inspecao",
+        "label": "Origem da inspeção",
+        "description": "Filtra os registros simulados ou reais na seção Qualidade das cápsulas.",
+        "current": {
+          "text": "All",
+          "value": "$__all",
+          "selected": true
+        },
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "Simulação",
+            "value": "simulacao",
+            "selected": false
+          },
+          {
+            "text": "Real",
+            "value": "real",
+            "selected": false
+          }
+        ],
+        "multi": true,
+        "includeAll": true,
+        "allValue": "''",
+        "hide": 0,
+        "skipUrlSync": false,
+        "type": "custom",
+        "query": "Simulação : simulacao, Real : real"
       }
     ]
   },
@@ -689,6 +771,402 @@
           }
         },
         "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Qualidade das cápsulas",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Índice de quebra",
+      "description": "Soma das cápsulas quebradas dividida pela soma das inspecionadas. O seletor de período considera o fim da produção de cada inspeção.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 100.0 * sum(i.quantidade_quebrada) / NULLIF(sum(i.total_inspecionado), 0) AS \"Índice de quebra\"\nFROM mixnutri.inspecoes_capsulas i\nWHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n  AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n  AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Sem dados",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Cápsulas inspecionadas",
+      "description": "Total informado nas inspeções selecionadas.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 30
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(i.total_inspecionado), 0) AS \"Cápsulas inspecionadas\"\nFROM mixnutri.inspecoes_capsulas i\nWHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n  AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n  AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "noValue": "Sem dados",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Cápsulas quebradas",
+      "description": "Quantidade quebrada informada nas inspeções selecionadas.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 30
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(i.quantidade_quebrada), 0) AS \"Cápsulas quebradas\"\nFROM mixnutri.inspecoes_capsulas i\nWHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n  AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n  AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "noValue": "Sem dados",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Índice de quebra por inspeção",
+      "description": "Cada ponto representa uma inspeção e usa o horário de fim do período de produção. Para a janela completa, consulte a tabela abaixo.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT i.fim AS \"time\",\n       100.0 * i.quantidade_quebrada / i.total_inspecionado AS \"Índice de quebra\",\n       concat('Inspeção ', i.id, ' · ', i.lote_producao) AS metric\nFROM mixnutri.inspecoes_capsulas i\nWHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n  AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n  AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))\n  AND i.total_inspecionado > 0\nORDER BY i.fim, i.id"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "pointSize": 8
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Condições ambientais nos intervalos inspecionados",
+      "description": "Leituras válidas da mesma sala, produto, lote e origem das inspeções selecionadas. Usa o horário da medição, com recebimento como referência quando falta o horário da medição.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(t.data_medicao, t.data_recebimento) AS \"time\",\n       t.umidade_pct AS \"Umidade (%UR)\", t.temperatura_c AS \"Temperatura (°C)\",\n       t.sala_id AS \"Sala\", t.produto AS \"Produto\", t.lote_producao AS \"Lote\",\n       CASE t.origem_dados WHEN 'simulacao' THEN 'Simulação' WHEN 'real' THEN 'Real' END AS \"Origem\",\n       t.device_id AS \"Dispositivo\"\nFROM mixnutri.telemetria_sala01 t\nWHERE t.clima_valido\n  AND COALESCE(t.data_medicao, t.data_recebimento) BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND EXISTS (\n    SELECT 1 FROM mixnutri.inspecoes_capsulas i\n    WHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n      AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n      AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n      AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))\n      AND i.sala_id = t.sala_id AND i.produto = t.produto\n      AND i.lote_producao = t.lote_producao AND i.origem_dados = t.origem_dados\n      AND COALESCE(t.data_medicao, t.data_recebimento) >= i.inicio AND COALESCE(t.data_medicao, t.data_recebimento) < i.fim\n  )\nORDER BY 1, t.id"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "humidity",
+          "custom": {
+            "lineWidth": 2,
+            "spanNulls": false,
+            "insertNulls": 30000,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^Temperatura /"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^Umidade /"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Registros e resumo ambiental por inspeção",
+      "description": "As médias, os extremos e a quantidade de leituras cobrem todo o período informado na inspeção, com início inclusivo e fim exclusivo. Deslize a tabela para ver todos os campos.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mixnutri-pg"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mixnutri-pg"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT i.id AS \"Inspeção\", i.produto AS \"Produto\", i.lote_producao AS \"Lote\",\n       i.inicio AS \"Início da produção\", i.fim AS \"Fim da produção\",\n       CASE i.origem_dados WHEN 'simulacao' THEN 'Simulação' WHEN 'real' THEN 'Real' END AS \"Origem\",\n       i.total_inspecionado AS \"Inspecionadas\", i.quantidade_quebrada AS \"Quebradas\",\n       i.indice_quebra_pct AS \"Índice de quebra (%)\",\n       i.temperatura_media_c AS \"T média (°C)\", i.temperatura_min_c AS \"T mínima (°C)\",\n       i.temperatura_max_c AS \"T máxima (°C)\", i.temperatura_leituras AS \"Leituras de T\",\n       i.umidade_media_pct AS \"UR média (%)\", i.umidade_min_pct AS \"UR mínima (%)\",\n       i.umidade_max_pct AS \"UR máxima (%)\", i.umidade_leituras AS \"Leituras de UR\",\n       i.sala_id AS \"Sala\", i.maquina AS \"Máquina\", i.ponto_inspecao AS \"Ponto de inspeção\",\n       i.lote_capsula AS \"Lote da cápsula\", i.enviado_em AS \"Enviada em\", i.observacoes AS \"Observações\"\nFROM mixnutri.v_inspecoes_capsulas i\nWHERE i.fim BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND ('' IN (${produto_inspecao:sqlstring}) OR i.produto IN (${produto_inspecao:sqlstring}))\n  AND ('' IN (${lote_inspecao:sqlstring}) OR i.lote_producao IN (${lote_inspecao:sqlstring}))\n  AND ('' IN (${origem_inspecao:sqlstring}) OR i.origem_dados IN (${origem_inspecao:sqlstring}))\nORDER BY i.fim DESC, i.id DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sem dados",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Índice de quebra (%)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^(T |UR )/"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,

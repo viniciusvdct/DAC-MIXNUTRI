@@ -24,6 +24,48 @@ O terceiro comando reproduz as 110 mensagens reais do firmware (log do Wokwi, da
 
 Para testar a leitura Modbus com o simulador de vocês: `MODBUS_HABILITADO=true docker compose --profile modbus up -d`.
 
+## Inspeções de cápsulas
+
+O formulário de inspeção fica no [Admin do Node-RED](http://127.0.0.1:1880/dashboard/admin), na seção **Inspeção de cápsulas**. Use o login `NODERED_ADMIN_*` do ambiente. A qualidade informa as contagens, o lote e o intervalo de produção. O horário do envio é registrado pelo banco. O formulário distingue inspeções reais e simuladas.
+
+### Atualizar o ambiente
+
+Para atualizar a instalação integrada, execute a partir de `item3-integracao/`. Use o mesmo `.env` e `COMPOSE_PROJECT_NAME` da instalação existente para reutilizar o volume do PostgreSQL.
+
+```bash
+docker compose up -d --wait postgres
+docker compose exec -T postgres sh -c 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < postgres/04_inspecoes_capsulas.sql
+docker compose up -d --wait
+docker compose restart node-red
+```
+
+A migração pode ser reaplicada. Em uma instalação nova, a inicialização do PostgreSQL executa o mesmo arquivo automaticamente. O Node-RED grava pela função parametrizada `integracao.gravar_inspecao`. O Grafana consulta os resultados com sua conta de leitura.
+
+### Reproduzir a demonstração
+
+Use um ambiente de demonstração local, com a ponte para o broker público desligada. Prepare a telemetria registrada no ensaio do Wokwi:
+
+```bash
+python3 -I ferramentas/reproduzir_log.py ../item2-firmware/exemplos/mqtt-exemplo.log ferramentas/cenario-boot-fecha-parada.log
+```
+
+No Admin, preencha **Sala** `sala01`, **Máquina** `Encapsuladora piloto`, **Produto** `PRODUTO_TESTE`, **Lote de produção** `LOTE_TESTE_01`, **Ponto de inspeção** `Saída da encapsuladora` e **Origem** `Simulação`. Registre as contagens abaixo. Os horários locais da tabela correspondem a Campo Grande.
+
+| Inspeção | Início e fim em 27/10/2026 (UTC) | Horário local (UTC−4) | Inspecionadas | Quebradas | Índice |
+| --- | --- | --- | ---: | ---: | ---: |
+| 1 | 23:10:08 a 23:11:13 | 19:10:08 a 19:11:13 | 200 | 4 | 2% |
+| 2 | 23:11:13 a 23:12:20 | 19:11:13 a 19:12:20 | 300 | 3 | 1% |
+
+Para preparar as duas inspeções via API do Admin, use `python3 -I ferramentas/preparar_demo_qualidade.py` em um ambiente cujo cenário ainda não tenha sido preenchido manualmente. O script reaproveita os mesmos identificadores a cada execução. Cada novo formulário confirmado é uma inspeção legítima e recebe seu próprio identificador.
+
+Abra [MixNutri sala01 no Grafana](http://127.0.0.1:3000/d/mixnutri-sala01), escolha **Janela do log reproduzido** e abra **Qualidade das cápsulas**. Filtre pelo produto, lote e origem da demonstração. A seleção das duas inspeções deve mostrar **7 de 500 (1,4%)**. O resumo de cada linha deve mostrar 13 medições válidas de cada variável. A temperatura média é 25 °C nos dois intervalos e a umidade média é 53% e 62%, respectivamente.
+
+Para conferir pela API do Grafana depois de preparar as duas inspeções, execute `python3 -I ferramentas/verificar_grafana.py --demonstracao-inspecoes`. Os testes de restrições, permissões e associação ambiental ficam em `ferramentas/teste_inspecoes.sql` e revertem os dados criados durante o teste.
+
+O índice agregado divide a soma das quebras pela soma das cápsulas inspecionadas. Um total zero aparece como **Sem dados**. Com total positivo e zero quebras, o índice é 0%. A associação ambiental usa sala, produto, lote e origem, com início inclusivo e fim exclusivo. A medição usa o horário do ESP32 quando disponível e o de recebimento como alternativa. O filtro de período do Grafana seleciona as inspeções pelo fim do intervalo de produção. A inspeção e o índice aparecem mesmo sem leituras ambientais.
+
+O ensaio valida o registro, o cálculo e a associação das leituras ao lote. Para investigar a quebra na fábrica, é preciso coletar inspeções reais e telemetria no mesmo período de produção.
+
 ## Testes prontos (e o resultado da execução de 28/10/2026)
 
 | Comando | Verifica | Evidência |

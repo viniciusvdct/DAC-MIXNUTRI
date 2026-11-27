@@ -19,7 +19,7 @@ services:
       - ./mosquitto:/mixnutri:ro
       - mosquitto-dados:/mosquitto/data
     ports:
-      - "127.0.0.1:1883:1883"
+      - "${MQTT_BIND:-127.0.0.1}:1883:1883"
     healthcheck:
       test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -u \"$$MQTT_BACKEND_USUARIO\" -P \"$$MQTT_BACKEND_SENHA\" -t mixnutri/sala01/disponibilidade -E -W 3 >/dev/null"]
       interval: 10s

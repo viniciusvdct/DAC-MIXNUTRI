@@ -100,5 +100,22 @@ BEGIN
          '{"config_version":1,"ur_liga":55,"ur_desliga":50,"limiar_operando_dbfs":-25,"limiar_parado_dbfs":-35}'));
   ASSERT r = 'configuracao v1 ja registrada', 'T8 ' || r;
   RAISE NOTICE 'T8 ok: versao de configuracao repetida ignorada';
+
+  -- T9: banco recriado, ESP32 com versao 99 na NVS (desconhecida). Os alertas de UR seguem a
+  -- configuracao ativa, e a leitura fica sem configuracao_id.
+  UPDATE mixnutri.alertas_emitidos SET fim = greatest(inicio, now()) WHERE fim IS NULL;
+  r := integracao.gravar_telemetria(topo_t, pg_temp.tel('t9', 0, '2026-10-27T11:00:00Z', 95) || '{"config_version":99}');
+  ASSERT r LIKE 'telemetria_gravada; config v99 desconhecida no banco, alertas pela ativa v%', 'T9a ' || r;
+  ASSERT (SELECT configuracao_id FROM mixnutri.telemetria_sala01 WHERE boot_id = 't9' AND seq = 0) IS NULL, 'T9b';
+  r := integracao.gravar_telemetria(topo_t, pg_temp.tel('t9', 1, '2026-10-27T11:00:30Z', 95) || '{"config_version":99}');
+  r := integracao.gravar_telemetria(topo_t, pg_temp.tel('t9', 2, '2026-10-27T11:01:00Z', 95) || '{"config_version":99}');
+  ASSERT r LIKE '%alerta UR_ALTA aberto; config v99 desconhecida%', 'T9c ' || r;
+  RAISE NOTICE 'T9 ok: versao de configuracao desconhecida nao silencia o alerta de UR';
+
+  -- T10: o Admin passa a publicar uma versao acima da que o ESP32 informou (99), nao 2..99.
+  ASSERT integracao.versao_config_dispositivo('sala01') = 99, 'T10a';
+  ASSERT integracao.proxima_versao_config('sala01') = 100, 'T10b ' || integracao.proxima_versao_config('sala01');
+  ASSERT (integracao.estado_admin('sala01')->>'versao_esp32')::int = 99, 'T10c';
+  RAISE NOTICE 'T10 ok: proxima versao do Admin considera a versao informada pelo ESP32';
 END $$;
 ROLLBACK;

@@ -22,6 +22,8 @@ def main():
     ap.add_argument('--env', default=os.path.join(AQUI, '..', '.env'))
     ap.add_argument('--de', default='2026-10-27T23:05:00Z')
     ap.add_argument('--ate', default='2026-10-27T23:35:00Z')
+    ap.add_argument('--relogio', choices=['medicao', 'recebimento'], default='medicao',
+                    help='referência de tempo das leituras, como no seletor do dashboard')
     a = ap.parse_args()
     env = ler_env(a.env)
     auth = base64.b64encode(('%s:%s' % (env['GRAFANA_ADMIN_USUARIO'], env['GRAFANA_ADMIN_SENHA'])).encode()).decode()
@@ -52,6 +54,8 @@ def main():
     for titulo, t in alvos:
         q = dict(t, datasource={'uid': 'mixnutri-pg', 'type': 'grafana-postgresql-datasource'}, intervalMs=1000,
                  maxDataPoints=500)
+        # A API de consulta não executa a interpolação de variáveis feita pelo navegador.
+        q['rawSql'] = q['rawSql'].replace('${relogio_leituras:sqlstring}', "'%s'" % a.relogio)
         st, r = api('/api/ds/query', {'from': ms(a.de), 'to': ms(a.ate), 'queries': [q]})
         res = r.get('results', {}).get(t['refId'], {})
         quadros = res.get('frames', [])

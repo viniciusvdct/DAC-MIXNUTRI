@@ -53,13 +53,16 @@ Qualquer pessoa pode ler e publicar nesse broker. Use só dados de teste.
 
 ## Gravar no ESP32 de verdade
 
-A rede e o broker ficam fora do `sketch.ino`:
+A rede e o broker ficam fora do `sketch.ino`. Com o [kit do item 3](../item3-integracao), use o script `item3-integracao/ferramentas/preparar_esp32.ps1` quando a rede local for conhecida. Ele cria `config_local.h` com as credenciais corretas e configura o broker.
 
-1. Copie `firmware/config_local.h.exemplo` para `firmware/config_local.h`.
-2. Preencha o Wi-Fi de 2,4 GHz, o endereço, o usuário e a senha do broker da equipe 2. `MIXNUTRI_SIMULACAO` já vem `0`, para marcar os dados como reais.
-3. Compile para **ESP32 Dev Module** com a tabela `partitions.csv` e as bibliotecas PubSubClient e ArduinoJson 7. O `platformio.ini` já tem tudo isso.
+Monte o [circuito do item 1](../item1-circuito-sql/README.md): SHT31 em 3V3/GND, SDA GPIO 21 e SCL GPIO 22 (pull-ups de 4,7 kΩ para 3V3, se a placa do sensor não os incluir); saída analógica do módulo de som em GPIO 34, com alimentação 3V3/GND e saída limitada a 3,3 V; módulo relé em VIN/GND e IN no GPIO 26. O firmware espera relé ativo em HIGH. Confirme que o modelo físico do relé aceita 3,3 V na entrada IN e que o VIN recebe a tensão exigida pelo módulo. O desenho usa apenas um LED e resistor de 330 Ω nos contatos COM/NO como carga de teste. Depois:
 
-Com o `config_local.h` presente, o sketch usa ele no lugar do `config_wokwi.h`. Esse arquivo fica fora do git, porque tem senhas. Se o módulo relé for ativo em LOW, inverta `RELE_ON` e `RELE_OFF`. A gravação na placa física ainda não foi testada.
+1. Ligue o ESP32 ao computador por USB. No PowerShell, entre na pasta `item2-firmware`.
+2. Compile e grave com `.\compilar_esp32.ps1 -Upload -Port COMx` (substitua `COMx` pela porta da placa). O script contorna um problema do linker com o caminho acentuado desta pasta. Para apenas compilar, use `.\compilar_esp32.ps1`.
+3. Abra o monitor com `.\compilar_esp32.ps1 -Monitor -Port COMx` (ou **Monitor** no VS Code). Confirme `FILA flash_ok=1` e `wifi=1 mqtt=1`.
+4. No Grafana, confirme o registro de novas telemetrias e gráficos. Ajuste os limites de umidade e som no Admin após medir os sensores na máquina real.
+
+Com o `config_local.h` presente, o sketch usa ele no lugar do `config_wokwi.h`. Esse arquivo fica fora do git, porque tem senhas. Se for usar outro broker, copie `config_local.h.exemplo` manualmente e preencha os dados. Se o módulo relé for ativo em LOW, inverta `RELE_ON` e `RELE_OFF`; confirme a tensão e a corrente aceitas pelo módulo. Teste primeiro o relé com carga de baixa tensão. A gravação e os sensores na placa física ainda não foram testados.
 
 O `boot_id` de cada mensagem junta o contador de reinícios com um número aleatório (ex.: `b3-7f3a`). Assim ele não se repete nem quando a memória do ESP32 é apagada, e o banco não confunde mensagens novas com antigas.
 

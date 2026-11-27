@@ -26,6 +26,12 @@ CREATE TABLE integracao.mensagens_mqtt (
 );
 CREATE INDEX mensagens_por_dispositivo_tipo ON integracao.mensagens_mqtt (device_id, tipo, id DESC);
 
+-- Apoio a regra de persistencia do UR_ALTA (gravar_telemetria) e aos paineis do Grafana, que filtram
+-- por coalesce(data_medicao, data_recebimento). Sem ele, com 30 dias de telemetria cada leitura com
+-- UR alta levava ~110 ms (varredura da tabela); com ele, < 1 ms. Fica aqui para nao alterar o item 1.
+CREATE INDEX telemetria_por_dispositivo_instante ON mixnutri.telemetria_sala01
+  (sala_id, device_id, (coalesce(data_medicao, data_recebimento)));
+
 -- Versao 1 = configPadrao() do firmware do item 2. Novas versoes entram pelo evento CONFIG_APLICADA.
 INSERT INTO mixnutri.configuracao_alertas
   (sala_id, versao, ativo, ur_liga, ur_desliga, limiar_operando, limiar_parado, unidade_ruido,
@@ -126,12 +132,25 @@ DECLARE
   v_ok timestamptz;
   v_ini timestamptz;
   v_res text := 'telemetria_gravada';
+  v_cfg_id bigint;
+  v_aviso text := '';
 BEGIN
   v_msg := integracao.registrar(p_topico, p);
   IF v_msg IS NULL THEN RETURN 'duplicada'; END IF;
   SELECT recebido_em INTO v_rec FROM integracao.mensagens_mqtt WHERE id = v_msg;
   SELECT * INTO c FROM mixnutri.configuracao_alertas
    WHERE sala_id = integracao.sala(p_topico, p) AND versao = (p->>'config_version')::integer;
+  v_cfg_id := c.id;  -- versao em uso no dispositivo; NULL quando o banco nao a conhece
+  IF c.id IS NULL THEN
+    -- Ex.: banco recriado enquanto o ESP32 manteve na NVS uma versao mais nova. Sem isto, nenhum
+    -- alerta de UR abria. Os alertas seguem a configuracao ativa ate chegar um CONFIG_APLICADA; a
+    -- leitura fica sem configuracao_id, porque os limites reais do dispositivo sao desconhecidos.
+    SELECT * INTO c FROM mixnutri.configuracao_alertas WHERE sala_id = integracao.sala(p_topico, p) AND ativo;
+    IF c.id IS NOT NULL THEN
+      v_aviso := format('; config v%s desconhecida no banco, alertas pela ativa v%s',
+                        coalesce(p->>'config_version', '?'), c.versao);
+    END IF;
+  END IF;
 
   -- Campos extras (estado_som, estado_modbus, motivo_rele, fila_flash, ruido_adc_rms...) ficam
   -- apenas em integracao.mensagens_mqtt.payload: o schema do item 1 nao tem colunas para eles.
@@ -143,7 +162,7 @@ BEGIN
          CASE WHEN x.clock_synced THEN x.timestamp_utc END, v_rec,
          x.origem_dados, x.produto, x.lote_producao, x.lote_capsula, x.lote_po, x.temperatura_c, x.umidade_pct,
          x.clima_valido, x.nivel_ruido, x.unidade_ruido, x.fonte_estado, x.estado_maquina, x.modo,
-         x.desumidificador_comandado, c.id
+         x.desumidificador_comandado, v_cfg_id
     FROM jsonb_to_record(p) AS x(device_id text, boot_id text, seq bigint, uptime_ms bigint,
          timestamp_utc timestamptz, clock_synced boolean, origem_dados text, produto text, lote_producao text,
          lote_capsula text, lote_po text, temperatura_c numeric, umidade_pct numeric, clima_valido boolean,
@@ -179,7 +198,7 @@ BEGIN
       v_res := v_res || '; alerta UR_ALTA fechado';
     END IF;
   END IF;
-  RETURN integracao.concluir(v_msg, v_res);
+  RETURN integracao.concluir(v_msg, v_res || v_aviso);
 END $$;
 
 CREATE FUNCTION integracao.gravar_parada_inicio(p_topico text, p jsonb) RETURNS text
@@ -446,14 +465,28 @@ $$;
 -- Apoio ao Admin (item 4) e a leitura Modbus no Node-RED
 -- ---------------------------------------------------------------------------------------
 
--- Versao seguinte para o Admin publicar: o firmware recusa versao igual ou menor que a aplicada.
--- Considera as versoes registradas e as ja publicadas no topico (ainda sem CONFIG_APLICADA).
+-- Versao de configuracao que o dispositivo informou por ultimo (telemetria, eventos ou confirmacoes).
+-- Busca do registro mais novo para tras: barato mesmo com muitas mensagens.
+CREATE FUNCTION integracao.versao_config_dispositivo(p_sala text) RETURNS bigint
+LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT floor((payload->>'config_version')::numeric)::bigint FROM integracao.mensagens_mqtt
+   WHERE topico IN ('mixnutri/' || p_sala || '/telemetria', 'mixnutri/' || p_sala || '/eventos',
+                    'mixnutri/' || p_sala || '/confirmacoes')
+     AND jsonb_typeof(payload->'config_version') = 'number'
+   ORDER BY id DESC LIMIT 1
+$$;
+
+-- Versao seguinte para o Admin publicar: o firmware recusa versao menor que a aplicada e responde
+-- "ja_aplicada" (sem aplicar os valores) para versao igual. Considera as versoes registradas, as ja
+-- publicadas no topico (ainda sem CONFIG_APLICADA) e a informada pelo dispositivo: depois de recriar
+-- o banco, o ESP32 fisico continua com a versao gravada na NVS.
 CREATE FUNCTION integracao.proxima_versao_config(p_sala text) RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
   SELECT greatest(
     (SELECT coalesce(max(versao), 0) FROM mixnutri.configuracao_alertas WHERE sala_id = p_sala),
     (SELECT coalesce(max(floor((payload->>'versao')::numeric)), 0)::bigint FROM integracao.mensagens_mqtt
-      WHERE topico = 'mixnutri/' || p_sala || '/configuracao' AND jsonb_typeof(payload->'versao') = 'number')
+      WHERE topico = 'mixnutri/' || p_sala || '/configuracao' AND jsonb_typeof(payload->'versao') = 'number'),
+    coalesce(integracao.versao_config_dispositivo(p_sala), 0)
   ) + 1
 $$;
 
@@ -463,6 +496,7 @@ CREATE FUNCTION integracao.estado_admin(p_sala text) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
   SELECT jsonb_build_object(
     'proxima_versao', integracao.proxima_versao_config(p_sala),
+    'versao_esp32', integracao.versao_config_dispositivo(p_sala),
     'configuracao', (SELECT jsonb_build_object('versao', versao, 'ur_max', ur_liga, 'histerese', histerese_pp,
         'limiar_db', limiar_operando, 'banda_db', limiar_operando - limiar_parado, 'unidade_ruido', unidade_ruido)
       FROM mixnutri.configuracao_alertas WHERE sala_id = p_sala AND ativo),

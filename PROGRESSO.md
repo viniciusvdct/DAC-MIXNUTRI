@@ -52,7 +52,8 @@ Serve para uma pessoa ou uma IA retomar o projeto sem reler tudo. Não coloque s
 | Item 3 (kit Docker) | Funciona; correções da revisão aplicadas e testadas (ver registro) |
 | Ponta a ponta Wokwi → ponte → kit | **Aprovado** em 27/11/2026: roteiro do item 5 completo e queda de rede sem perda |
 | Alertas e-mail/Telegram | Não implementado (pendente para integração) |
-| Registro de taxa de quebra | Não existe (pendente para integração) |
+| Registro de taxa de quebra | Implementado (inspeções de cápsulas) e testado no banco; em revisão na branch `inspecoes-e-painel` |
+| Painel HTML do projeto | `docs/painel-projeto.html` (+ cópia em arquivo único para WhatsApp); branch `inspecoes-e-painel` |
 | Hardware físico | Não montado |
 
 ## Registro de trabalho
@@ -209,6 +210,79 @@ Decisões:
 - Polaridade do relé a confirmar na bancada (`h`/`l`); módulos ativos em LOW com optoacoplador podem
   não desligar com 3,3 V.
 
+### 27/11/2026 — case 3D (cápsula): animação para os slides
+
+O case impresso em 3D fica **fora deste repositório**, em `../case-capsula/` (modelo paramétrico em
+Python/build123d, STL para a INTAMSYS FUNMAT PRO 410 do SENAI, 16 checagens de encaixe em `uv run pytest`,
+zip de impressão `case-capsula-impressao.zip`). Textos gravados: corpo "MIXNUTRI · UCDB"; etiqueta do
+suporte "MixNutri / UCDB" com QR para este repositório.
+
+Novo nesta etapa (`../case-capsula/animacao/`):
+- Cena three.js com o modelo real do CAD e os componentes detalhados nas medidas padrão (ESP32 DevKit
+  V1 na placa de bornes, relé 5 V, microfone, **DHT11** como no kit físico, LEDs dos ícones acesos,
+  prensa-cabos e USB-C). Roteiro de 27 s: montada (giro 360°) → manutenção (tampa 1/8 de volta, gaveta
+  sai) → vista explodida com legendas → remonta.
+- Render quadro a quadro em 4K reduzido para 1080p no navegador; um servidor local grava os quadros e
+  `codificar.py` gera os vídeos com ffmpeg (`imageio-ffmpeg`).
+- Saída em `../case-capsula/saida/animacao/` e no pacote `../case-capsula/case-capsula-slides.zip` (33 MB):
+  vídeo completo com e sem texto, um trecho em loop por vista (MP4 com e sem texto + GIF 960×540) e 4
+  fotos PNG 3840×2160 com fundo transparente.
+- Conferido: 810 quadros completos nas duas versões; MP4 H.264 yuv420p BT.709 de 27/7/8/12 s; GIFs de
+  7/8/12 s; fotos RGBA transparentes; quadros de cada fase revisados visualmente.
+
+Pendente: os três ícones do case (energia, rede, desumidificador) não batem com os LEDs do firmware do
+kit físico (verde = desumidificador, vermelho = UR alta, amarelo = parada, azul = rede). Decidir se o
+case passa a ter quatro ícones. O case ainda não foi impresso (cupons de folga primeiro).
+
+### 27/11/2026 — apresentação final (PowerPoint)
+
+Fica **fora deste repositório**, em `../apresentacao/` (pasta local do projeto DAC):
+- `IoT-MixNutri_Apresentacao.pptx`: 18 slides, 3 por pessoa, nesta ordem: Pierina (abertura e contexto),
+  Aline Biberg (hardware e circuito), Vinicius Teixeira (firmware e automação), Jonatas (integração,
+  simulação e resultados), Jarbas (rede e banco de dados) e João (painéis, alertas e conclusão). Não cita
+  as equipes. Uma seção do PowerPoint por pessoa e roteiro de fala nas notas do orador (~27 min).
+- Visual derivado da cápsula (verde-oliva da tampa, corpo branco, LEDs âmbar, azul e verde); títulos em
+  Century Gothic e texto em Calibri. Desenhos 2D com formas nativas: ESP32, DHT11, relé, microfone, LEDs,
+  encapsuladora com esteira, gráficos de histerese e de som, chip de dois núcleos, fila na Flash,
+  contêineres e fluxo do Node-RED. Usa os GIFs e a foto 4K da cápsula (`case-capsula-slides.zip`) e os
+  prints reais do Grafana (`docs/capturas/`).
+- Animações automáticas em todos os slides (10 a 30 por slide) e transição Morph nos 18. Conferido no
+  PowerPoint: Morph e animações reconhecidos, validação OOXML aprovada, e um clique avança mesmo com os
+  loops rodando.
+- `gerar_slides.py` + `base.py` geram o deck (python-pptx no `.venv` da pasta); `renderizar.sh` exporta pelo
+  PowerPoint em PDF e JPG para revisão. `IoT-MixNutri_Apresentacao.pdf` é a versão estática.
+- Afirmações conferidas com o estado real: simulação testada; bancada física e Telegram/e-mail como
+  próximos passos.
+
+### 27/11/2026 — inspeções de cápsulas / índice de quebra (sessão paralela)
+
+Uma sessão paralela (fork desta conversa) implementou o registro de quebra e parou por limite de uso
+antes de registrar aqui e de commitar. Arquivos (commitados depois na branch `inspecoes-e-painel`):
+- novos: `item3-integracao/postgres/04_inspecoes_capsulas.sql` (tabela `mixnutri.inspecoes_capsulas`,
+  índice por contexto e funções; aplicável a banco existente), `ferramentas/teste_inspecoes.sql`,
+  `ferramentas/preparar_demo_qualidade.py` (envia duas inspeções simuladas do roteiro);
+- alterados: `compose.yaml` (monta o 04), `node-red/dados/flows.json` (formulário de inspeção no Admin),
+  `grafana/dashboards/mixnutri-sala01.json` (painéis 8–14: qualidade, índice de quebra, inspecionadas,
+  quebradas, índice por inspeção, condições ambientais nos intervalos, resumo por inspeção),
+  `ferramentas/verificar_grafana.py`, `README.md` e `docs/guia-integracao-equipe2.md` do item 3.
+
+Verificado nesta sessão (stack `mixnutri-equipe1`, que já tinha a migração 04 aplicada):
+`teste_inspecoes.sql` OK ("gravadas 2% e 1%, total ponderado 1,4%, reenvios, dados inválidos, contexto
+ambiental, casos sem dados e permissões conferidos"); `teste_funcoes.sql` T1–T10 OK; `testar_admin.py`
+14/14; `verificar_grafana.py` OK (painéis de inspeção sem dados na janela padrão). **Não verificado:** o
+formulário de inspeção pela interface do Admin e o roteiro do `preparar_demo_qualidade.py`.
+
+### 27/11/2026 — painel HTML do projeto (para as outras equipes)
+
+- `docs/painel-projeto.html`: página única com estado de cada parte, arquitetura, teste ponta a ponta,
+  capturas do Grafana (ampliáveis), tabela de testes, contrato MQTT, como rodar, kit físico e o que falta
+  por equipe. Tema claro e escuro; funciona no celular (conferido em 375 px, sem rolagem lateral).
+- `docs/empacotar_painel.py` gera a cópia em arquivo único com as imagens embutidas (232 KB), para mandar
+  por WhatsApp: `python3 -I docs/empacotar_painel.py [saida.html]`. A cópia padrão
+  (`docs/painel-projeto-arquivo-unico.html`) fica fora do git; outra cópia foi salva em
+  `../sessao-claude-2026-11-26/painel-projeto-mixnutri.html`.
+- O conteúdo é um retrato de 27/11/2026: ao mudar o estado do projeto, editar o HTML e rodar o script.
+
 ## Alinhamento com as equipes 2 e 3 (análise de 27/11/2026)
 
 **Situação.** A entrega das equipes 2 e 3 ("Solução - MixNutri - Dashboard + BD", guardada no pacote
@@ -264,4 +338,5 @@ O que é de todos (ninguém tem ainda):
    forem iguais; contador `descartes` atômico; padrão Modbus 3/5 como no simulador.
 4. Integração com equipes 2 e 3: confirmar que o kit da equipe 1 é o backend integrado e seguir a
    lista da seção "Alinhamento com as equipes 2 e 3".
-5. Commitar a branch `hardware-bancada` (teste de bancada, suporte a DHT11, scripts e guia) — ainda local.
+5. Revisar e mergear o PR da branch `inspecoes-e-painel` (inspeções de cápsulas e painel HTML), de
+   preferência antes do PR #2; a `hardware-bancada` já incorporou essa branch.

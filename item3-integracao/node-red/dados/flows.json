@@ -198,6 +198,20 @@
         "groupType": "default"
     },
     {
+        "id": "ui_grupo_inspecao",
+        "type": "ui-group",
+        "name": "Inspeção de cápsulas",
+        "page": "ui_pagina_admin",
+        "width": "12",
+        "height": "1",
+        "order": 5,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default"
+    },
+    {
         "id": "comentario",
         "type": "comment",
         "z": "aba_mixnutri",
@@ -1978,6 +1992,138 @@
         "name": "Aviso no painel",
         "x": 1400,
         "y": 1140,
+        "wires": []
+    },
+    {
+        "id": "ui_form_inspecao",
+        "type": "ui-template",
+        "z": "aba_admin",
+        "group": "ui_grupo_inspecao",
+        "page": "",
+        "ui": "",
+        "name": "Formulário de inspeção",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "head": "",
+        "format": "<template>\n  <form class=\"mixnutri-inspecao\" @submit.prevent=\"enviar\">\n    <p>Informe o intervalo de produção das cápsulas inspecionadas. Horário do navegador: {{ fuso }}.</p>\n    <fieldset :disabled=\"enviando || !!pendente\">\n      <label>Sala\n        <input v-model.trim=\"campos.sala_id\" name=\"sala_id\" required>\n      </label>\n      <label>Máquina\n        <input v-model.trim=\"campos.maquina\" name=\"maquina\" required>\n      </label>\n      <label>Produto\n        <input v-model.trim=\"campos.produto\" name=\"produto\" required>\n      </label>\n      <label>Lote de produção\n        <input v-model.trim=\"campos.lote_producao\" name=\"lote_producao\" required>\n      </label>\n      <label>Início da produção inspecionada\n        <input v-model=\"campos.inicio\" name=\"inicio\" type=\"datetime-local\" step=\"1\" required>\n      </label>\n      <label>Fim da produção inspecionada\n        <input v-model=\"campos.fim\" name=\"fim\" type=\"datetime-local\" step=\"1\" required>\n      </label>\n      <label>Ponto de inspeção\n        <input v-model.trim=\"campos.ponto_inspecao\" name=\"ponto_inspecao\" required>\n      </label>\n      <label>Origem\n        <select v-model=\"campos.origem_dados\" name=\"origem_dados\" required>\n          <option disabled value=\"\">Selecione a origem</option>\n          <option value=\"simulacao\">Simulação</option>\n          <option value=\"real\">Real</option>\n        </select>\n      </label>\n      <label>Total inspecionado\n        <input v-model=\"campos.total_inspecionado\" name=\"total_inspecionado\" type=\"number\" min=\"0\" max=\"2147483647\" step=\"1\" required>\n      </label>\n      <label>Quantidade quebrada\n        <input v-model=\"campos.quantidade_quebrada\" name=\"quantidade_quebrada\" type=\"number\" min=\"0\" max=\"2147483647\" step=\"1\" required>\n      </label>\n      <label>Lote da cápsula (opcional)\n        <input v-model.trim=\"campos.lote_capsula\" name=\"lote_capsula\">\n      </label>\n      <label>Observações (opcional)\n        <textarea v-model.trim=\"campos.observacoes\" name=\"observacoes\" rows=\"2\"></textarea>\n      </label>\n    </fieldset>\n    <p v-if=\"pendente && !enviando\">\n      Envio aguardando confirmação. Lote {{ pendente.lote_producao }}, {{ pendente.total_inspecionado }} inspecionadas e {{ pendente.quantidade_quebrada }} quebradas.\n    </p>\n    <div class=\"mixnutri-inspecao-acoes\">\n      <v-btn type=\"submit\" color=\"primary\" :loading=\"enviando\" :disabled=\"enviando\">\n        {{ pendente && !enviando ? 'Reenviar inspeção' : 'Registrar inspeção' }}\n      </v-btn>\n      <p v-if=\"mensagem\" role=\"status\" aria-live=\"polite\">{{ mensagem }}</p>\n    </div>\n  </form>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n      campos: {\n        sala_id: 'sala01',\n        maquina: '',\n        produto: '',\n        lote_producao: '',\n        inicio: '',\n        fim: '',\n        ponto_inspecao: '',\n        origem_dados: '',\n        total_inspecionado: '',\n        quantidade_quebrada: '',\n        lote_capsula: '',\n        observacoes: ''\n      },\n      fuso: Intl.DateTimeFormat().resolvedOptions().timeZone,\n      pendente: null,\n      enviando: false,\n      mensagem: ''\n    }\n  },\n  mounted() {\n    try {\n      this.pendente = JSON.parse(sessionStorage.getItem('mixnutri.inspecao.pendente'))\n    } catch {\n      this.pendente = null\n    }\n  },\n  methods: {\n    async enviar() {\n      if (this.enviando) return\n      this.mensagem = ''\n      this.enviando = true\n\n      const gravarPendente = (envio) => {\n        this.pendente = envio\n        try {\n          if (envio) sessionStorage.setItem('mixnutri.inspecao.pendente', JSON.stringify(envio))\n          else sessionStorage.removeItem('mixnutri.inspecao.pendente')\n        } catch {\n          // O reenvio continua disponível nesta página quando o navegador bloqueia o armazenamento.\n        }\n      }\n\n      try {\n        if (!this.pendente) {\n          const inicio = new Date(this.campos.inicio)\n          const fim = new Date(this.campos.fim)\n          if (!(fim > inicio)) {\n            this.mensagem = 'O fim do período deve ser posterior ao início.'\n            return\n          }\n          if (Number(this.campos.quantidade_quebrada) > Number(this.campos.total_inspecionado)) {\n            this.mensagem = 'A quantidade quebrada deve ser menor ou igual ao total inspecionado.'\n            return\n          }\n          gravarPendente({\n            ...this.campos,\n            envio_id: crypto.randomUUID(),\n            inicio: inicio.toISOString(),\n            fim: fim.toISOString(),\n            total_inspecionado: Number(this.campos.total_inspecionado),\n            quantidade_quebrada: Number(this.campos.quantidade_quebrada)\n          })\n        }\n\n        const resp = await fetch('/dashboard/api/inspecoes', {\n          method: 'POST',\n          credentials: 'same-origin',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify(this.pendente),\n          signal: AbortSignal.timeout(15000)\n        })\n        if (resp.status === 401) {\n          this.mensagem = 'O Admin exige autenticação. Reabra a página e reenvie a inspeção.'\n          return\n        }\n        const resultado = await resp.json()\n        if (resp.ok && ['gravada', 'duplicada'].includes(resultado.status)) {\n          gravarPendente(null)\n          this.campos.total_inspecionado = ''\n          this.campos.quantidade_quebrada = ''\n          this.campos.observacoes = ''\n          this.mensagem = resultado.mensagem\n        } else if (resp.status === 400 || resp.status === 409) {\n          gravarPendente(null)\n          this.mensagem = resultado.mensagem\n        } else {\n          this.mensagem = resultado.mensagem || 'Sem confirmação do registro. Reenvie a inspeção.'\n        }\n      } catch {\n        this.mensagem = 'Sem confirmação do registro. Tente registrar a inspeção novamente.'\n      } finally {\n        this.enviando = false\n      }\n    }\n  }\n}\n</script>\n\n<style>\n.mixnutri-inspecao {\n  display: grid;\n  gap: 0.75rem;\n  padding: 0.75rem;\n}\n.mixnutri-inspecao fieldset {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));\n  border: 0;\n  gap: 0.75rem;\n}\n.mixnutri-inspecao label {\n  display: grid;\n  align-content: start;\n  gap: 0.25rem;\n}\n.mixnutri-inspecao input,\n.mixnutri-inspecao select,\n.mixnutri-inspecao textarea {\n  color: inherit;\n  min-width: 0;\n  background: rgb(var(--v-theme-surface));\n  border: 1px solid rgba(var(--v-theme-on-surface), 0.45);\n  border-radius: 4px;\n  padding: 0.4rem 0.5rem;\n}\n.mixnutri-inspecao-acoes {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 0.75rem;\n}\n</style>",
+        "storeOutMessages": false,
+        "passthru": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "className": "",
+        "x": 210,
+        "y": 1220,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "http_inspecao",
+        "type": "http in",
+        "z": "aba_admin",
+        "name": "Receber inspeção",
+        "url": "/dashboard/api/inspecoes",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 160,
+        "y": 1280,
+        "wires": [
+            [
+                "fn_validar_inspecao"
+            ]
+        ]
+    },
+    {
+        "id": "fn_validar_inspecao",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Validar dados da inspeção",
+        "func": "function erro(mensagem) {\n    msg.statusCode = 400;\n    msg.payload = { mensagem };\n    return [null, msg];\n}\n\nconst tipo = msg.req.headers['content-type'] || '';\nconst entrada = msg.payload;\nif (!/^application\\/json(?:\\s*;|$)/i.test(tipo) || !entrada ||\n    typeof entrada !== 'object' || Array.isArray(entrada)) {\n    return erro('Envie os dados da inspeção como objeto JSON.');\n}\n\nif (typeof entrada.envio_id !== 'string' ||\n    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entrada.envio_id)) {\n    return erro('Identificador de envio inválido.');\n}\nconst dados = { envio_id: entrada.envio_id };\nconst rotulos = {\n    sala_id: 'sala',\n    maquina: 'máquina',\n    produto: 'produto',\n    lote_producao: 'lote de produção',\n    ponto_inspecao: 'ponto de inspeção'\n};\nfunction textoValido(valor) {\n    return typeof valor === 'string' && !/[\\u0000\\uD800-\\uDFFF]/u.test(valor);\n}\nfor (const [campo, rotulo] of Object.entries(rotulos)) {\n    const valor = entrada[campo];\n    if (!textoValido(valor) || !valor.trim()) return erro('Informe o campo ' + rotulo + '.');\n    dados[campo] = valor.trim();\n}\nfor (const [campo, rotulo] of [['lote_capsula', 'lote da cápsula'], ['observacoes', 'observações']]) {\n    const valor = entrada[campo];\n    if (valor != null && !textoValido(valor)) return erro('Informe um texto válido no campo ' + rotulo + '.');\n    dados[campo] = valor == null ? null : valor.trim() || null;\n}\n\nif (!['simulacao', 'real'].includes(entrada.origem_dados)) return erro('Selecione a origem Real ou Simulação.');\ndados.origem_dados = entrada.origem_dados;\n\nfor (const [campo, rotulo] of [['total_inspecionado', 'total inspecionado'], ['quantidade_quebrada', 'quantidade quebrada']]) {\n    const valor = entrada[campo];\n    if (!Number.isInteger(valor) || valor < 0 || valor > 2147483647) {\n        return erro('O campo ' + rotulo + ' deve ser um inteiro entre 0 e 2.147.483.647.');\n    }\n    dados[campo] = valor;\n}\nif (dados.quantidade_quebrada > dados.total_inspecionado) {\n    return erro('A quantidade quebrada deve ser menor ou igual ao total inspecionado.');\n}\n\nfunction instante(valor) {\n    if (typeof valor !== 'string') return null;\n    const data = /^(\\d{4}-\\d{2}-\\d{2})T(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d{1,3})?)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$/.exec(valor);\n    if (!data || data[1].startsWith('0000-')) return null;\n    const dia = new Date(data[1]);\n    const hora = new Date(valor);\n    if (!Number.isFinite(+hora) || !Number.isFinite(+dia) || dia.toISOString().slice(0, 10) !== data[1]) return null;\n    return hora;\n}\nconst inicio = instante(entrada.inicio);\nconst fim = instante(entrada.fim);\nif (!inicio) return erro('Informe um início de produção válido com fuso horário.');\nif (!fim) return erro('Informe um fim de produção válido com fuso horário.');\nif (fim <= inicio) return erro('O fim do período deve ser posterior ao início.');\ndados.inicio = inicio.toISOString();\ndados.fim = fim.toISOString();\n\nmsg.params = [JSON.stringify(dados)];\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 1280,
+        "wires": [
+            [
+                "pg_inspecao"
+            ],
+            [
+                "http_resposta_inspecao"
+            ]
+        ]
+    },
+    {
+        "id": "pg_inspecao",
+        "type": "postgresql",
+        "z": "aba_admin",
+        "name": "Registrar inspeção no PostgreSQL",
+        "query": "SELECT integracao.gravar_inspecao($1::jsonb) AS resultado",
+        "postgreSQLConfig": "pg_cfg",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 740,
+        "y": 1280,
+        "wires": [
+            [
+                "fn_responder_inspecao"
+            ]
+        ]
+    },
+    {
+        "id": "catch_inspecao",
+        "type": "catch",
+        "z": "aba_admin",
+        "name": "Erros ao gravar inspeção",
+        "scope": [
+            "pg_inspecao"
+        ],
+        "uncaught": false,
+        "x": 750,
+        "y": 1340,
+        "wires": [
+            [
+                "fn_responder_inspecao"
+            ]
+        ]
+    },
+    {
+        "id": "fn_responder_inspecao",
+        "type": "function",
+        "z": "aba_admin",
+        "name": "Confirmar registro",
+        "func": "if (msg.error) {\n    if (msg.error.code === '22023') {\n        msg.statusCode = 400;\n        msg.payload = { mensagem: msg.error.message.replace(/^error:\\s*/i, '') };\n    } else if (msg.error.code === '23505') {\n        msg.statusCode = 409;\n        msg.payload = { mensagem: 'Esse identificador já foi usado em uma inspeção diferente. Confira o registro antes de tentar novamente.' };\n    } else {\n        msg.statusCode = 503;\n        msg.payload = { mensagem: 'Não foi possível confirmar a gravação. Reenvie a inspeção em instantes.' };\n    }\n    return msg;\n}\n\nconst resultado = msg.payload?.[0]?.resultado;\nif (!resultado || !['gravada', 'duplicada'].includes(resultado.status)) {\n    msg.statusCode = 503;\n    msg.payload = { mensagem: 'O banco não confirmou a gravação. Reenvie a inspeção em instantes.' };\n    return msg;\n}\n\nconst nova = resultado.status === 'gravada';\nmsg.statusCode = nova ? 201 : 200;\nmsg.payload = {\n    ...resultado,\n    mensagem: nova ? 'Inspeção registrada (nº ' + resultado.id + ').' : 'Inspeção já registrada (nº ' + resultado.id + ').'\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1020,
+        "y": 1280,
+        "wires": [
+            [
+                "http_resposta_inspecao"
+            ]
+        ]
+    },
+    {
+        "id": "http_resposta_inspecao",
+        "type": "http response",
+        "z": "aba_admin",
+        "name": "Responder ao formulário",
+        "statusCode": "",
+        "headers": {
+            "Cache-Control": "no-store"
+        },
+        "x": 1270,
+        "y": 1320,
         "wires": []
     }
 ]

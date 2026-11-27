@@ -28,3 +28,6 @@ item3-integracao/node-red/dados/node_modules/
 item3-integracao/node-red/dados/package.json
 item3-integracao/node-red/dados/package-lock.json
 item3-integracao/node-red/dados/context/
+
+# Copia do painel com imagens embutidas (gerada por docs/empacotar_painel.py).
+docs/painel-projeto-arquivo-unico.html

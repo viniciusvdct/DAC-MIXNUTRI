@@ -1,4 +1,4 @@
-// MixNutri - firmware do ESP32 da sala piloto (item 2, equipe 1). Versao 27/10/2026.
+// MixNutri - firmware do ESP32 da sala piloto (item 2, equipe 1). Versao 27/11/2026 (+ kit fisico DHT11).
 // Histerese de UR, classificacao acustica OPERANDO/PARADO, cliente Modbus TCP opcional,
 // comandos MANUAL/AUTO e configuracao via MQTT, retencao de mensagens na Flash (LittleFS).
 // Parametros, topicos e politicas sao propostas didaticas a combinar com as equipes 2 e 3.
@@ -27,11 +27,21 @@ using namespace mixnutri;
 static const char *ORIGEM = "simulacao", *FONTE_SOM = "sintetico";
 #else
 static const char *ORIGEM = "real", *FONTE_SOM = "audio";
+// Kit fisico de bancada (DHT11, LEDs, polaridade do rele). O Wokwi nao usa este arquivo.
+#if __has_include("hardware_fisico.h")
+#include "hardware_fisico.h"
+#endif
+#endif
+#ifndef CLIMA_DHT11
+#define CLIMA_DHT11 0  // 0 = SHT31 por I2C, como no circuito do item 1 (Wokwi)
+#endif
+#ifndef RELE_ATIVO_EM_HIGH
+#define RELE_ATIVO_EM_HIGH 1  // modulo npn do Wokwi: HIGH liga
 #endif
 
 // ======================================================= hardware (pinagem do item 1)
 static const uint8_t PIN_SDA = 21, PIN_SCL = 22, PIN_RELE = 26, PIN_SOM = 34, PIN_LED_REDE = 2;
-static const uint8_t RELE_ON = HIGH, RELE_OFF = LOW;  // modulo npn: verificado no item 1
+static const uint8_t RELE_ON = RELE_ATIVO_EM_HIGH ? HIGH : LOW, RELE_OFF = RELE_ATIVO_EM_HIGH ? LOW : HIGH;
 static const uint8_t SHT_ADDR = 0x44;
 
 // ================================================================== mensagens
@@ -99,10 +109,14 @@ static uint16_t codigoFalhaModbus = 0;
 static JsonDocument doc, entrada;  // saida e entrada, usados so pela tarefa de controle
 static Mensagem saidaTmp;
 
-static bool climaValido = false, aguardandoClima = false;
+static bool climaValido = false;
 static int8_t climaEstado = -1;  // -1 inicializando, 0 falha, 1 valido
 static float temperatura = NAN, umidade = NAN;
-static uint32_t pedidoClimaEm = 0, ultimoPedidoClima = 0;
+static uint32_t ultimoPedidoClima = 0;
+#if !CLIMA_DHT11
+static bool aguardandoClima = false;
+static uint32_t pedidoClimaEm = 0;
+#endif
 
 // Som: amostras a 4 kHz, janelas de 256 (64 ms), blocos de 8 janelas (~0,5 s).
 static uint32_t ultimaAmostraUs = 0;
@@ -206,7 +220,14 @@ static void controlar(uint32_t agora) {
   enviar(T_EVENTOS, ev, "EVT ");
 }
 
-// ================================================================ SHT31 (I2C)
+// ======================================================== sensor de clima
+#if CLIMA_DHT11
+#include <DHT.h>
+static const char *SENSOR_CLIMA = "DHT11";
+static DHT dht(PIN_DHT, DHT11);
+#else
+static const char *SENSOR_CLIMA = "SHT31";
+#endif
 static void definirClima(bool valido, uint32_t agora) {
   climaValido = valido;
   if (!valido) temperatura = umidade = NAN;
@@ -214,14 +235,28 @@ static void definirClima(bool valido, uint32_t agora) {
   if (novo != climaEstado) {
     if (novo == 0 || climaEstado == 0) {
       JsonDocument &ev = evento(valido ? "SENSOR_OK" : "SENSOR_FALHA", agora);
-      ev["sensor"] = "SHT31";
+      ev["sensor"] = SENSOR_CLIMA;
       enviar(T_EVENTOS, ev, "EVT ");
     }
     climaEstado = novo;
   }
   controlar(agora);
 }
-static uint8_t crc8(const uint8_t *p) {
+#if CLIMA_DHT11
+// DHT11 (kit fisico): leitura de um fio que bloqueia ~25 ms; no maximo uma por segundo.
+// Faixa 20-90 %UR com +/- 5 %UR: serve para a bancada, nao para decisao industrial.
+void lerClimaDht(uint32_t agora) {  // sem static: o .ino gera prototipo mesmo dentro de #if
+  bool ok = dht.read(true);
+  if (ok) {
+    const float h = dht.readHumidity(), t = dht.readTemperature();  // usam a leitura acima
+    ok = isfinite(h) && isfinite(t) && h >= 0 && h <= 100 && t > -40 && t < 125;
+    if (ok) { umidade = h; temperatura = t; }
+  }
+  definirClima(ok, agora);
+}
+#else
+// SHT31 (I2C 0x44): pedido nao bloqueante e leitura 20 ms depois.
+uint8_t crc8(const uint8_t *p) {
   uint8_t crc = 0xff;
   for (uint8_t i = 0; i < 2; ++i) {
     crc ^= p[i];
@@ -229,13 +264,13 @@ static uint8_t crc8(const uint8_t *p) {
   }
   return crc;
 }
-static void pedirClima(uint32_t agora) {
+void pedirClima(uint32_t agora) {
   Wire.beginTransmission(SHT_ADDR); Wire.write(0x24); Wire.write(0x00);  // single shot, sem stretching
   aguardandoClima = Wire.endTransmission() == 0;
   pedidoClimaEm = agora;
   if (!aguardandoClima) definirClima(false, agora);
 }
-static void receberClima(uint32_t agora) {
+void receberClima(uint32_t agora) {
   uint8_t b[6];
   bool ok = Wire.requestFrom(SHT_ADDR, (uint8_t)6) == 6;
   if (ok) {
@@ -250,6 +285,7 @@ static void receberClima(uint32_t agora) {
   aguardandoClima = false;
   definirClima(ok, agora);
 }
+#endif
 
 // ============================================================ estado da maquina
 static void publicarTransicao(const char *fonte, EstadoMaquina de, EstadoMaquina para,
@@ -658,6 +694,12 @@ static void imprimirStatus(uint32_t agora) {
 void setup() {
   digitalWrite(PIN_RELE, RELE_OFF); pinMode(PIN_RELE, OUTPUT);  // saida definida antes da rede
   pinMode(PIN_LED_REDE, OUTPUT);
+#ifdef PIN_LED_PARADA
+  pinMode(PIN_LED_PARADA, OUTPUT);
+#endif
+#ifdef PIN_LED_ALERTA
+  pinMode(PIN_LED_ALERTA, OUTPUT);
+#endif
   Serial.setTxBufferSize(4096);
   Serial.begin(115200);
   prefs.begin("mixnutri", false);
@@ -673,10 +715,15 @@ void setup() {
   qSaida = xQueueCreate(16, sizeof(Mensagem));
   qEntrada = xQueueCreate(4, sizeof(Mensagem));
   mtxConfig = xSemaphoreCreateMutex();
+#if CLIMA_DHT11
+  dht.begin();
+#else
   Wire.begin(PIN_SDA, PIN_SCL); Wire.setTimeOut(50);
+#endif
   analogReadResolution(12); pinMode(PIN_SOM, INPUT);
 
   Serial.printf("MIXNUTRI FIRMWARE ITEM 2 | %s | boot=%s | origem=%s | som em dBFS (nao dB SPL)\n", DEVICE_ID, bootId, ORIGEM);
+  Serial.printf("HARDWARE clima=%s rele_ativo_em=%s\n", SENSOR_CLIMA, RELE_ATIVO_EM_HIGH ? "HIGH" : "LOW");
   imprimirAjuda();
   Serial.printf("MQTT broker=%s:%u base=%s\n", MQTT_HOST[0] ? MQTT_HOST : "(desligado)", MQTT_PORTA, TOPICO_BASE);
   Serial.printf("FILA flash_ok=%d itens=%u capacidade=%u slot=%uB\n", filaOk, (unsigned)filaQtd, (unsigned)SLOTS, (unsigned)SLOT);
@@ -690,7 +737,9 @@ void setup() {
   ev["fila_flash"] = filaQtd; ev["modo"] = "AUTO";
   enviar(T_EVENTOS, ev, "EVT ");
   xTaskCreatePinnedToCore(tarefaRede, "rede", 8192, nullptr, 1, nullptr, 0);
+#if !CLIMA_DHT11
   pedirClima(millis());
+#endif
 }
 
 // ======================================================================= loop
@@ -698,8 +747,12 @@ void loop() {
   const uint32_t agora = millis();
   lerSerial();
   processarEntradas();
+#if CLIMA_DHT11
+  if ((uint32_t)(agora - ultimoPedidoClima) >= 2000) { ultimoPedidoClima = agora; lerClimaDht(agora); }
+#else
   if (aguardandoClima && (uint32_t)(agora - pedidoClimaEm) >= 20) receberClima(agora);
   if (!aguardandoClima && (uint32_t)(agora - ultimoPedidoClima) >= 2000) { ultimoPedidoClima = agora; pedirClima(agora); }
+#endif
   amostrarSom(agora);
   avaliarModbus(agora);
   if (controlador.verificarExpiracao(agora)) {
@@ -712,4 +765,12 @@ void loop() {
   if ((uint32_t)(agora - ultimaTelemetria) >= cfg.telemetria_ms) { ultimaTelemetria = agora; publicarTelemetria(agora); }
   if ((uint32_t)(agora - ultimoStatus) >= 2000) { ultimoStatus = agora; imprimirStatus(agora); }
   digitalWrite(PIN_LED_REDE, mqttOk ? HIGH : wifiOk ? (agora / 500) % 2 : (agora / 125) % 2);
+#ifdef PIN_LED_ALERTA  // vermelho: UR no limite de ligar ou acima; pisca com falha do sensor de clima
+  digitalWrite(PIN_LED_ALERTA, climaEstado == 0 ? (agora / 250) % 2 : climaValido && umidade >= cfg.ur_liga);
+#endif
+#ifdef PIN_LED_PARADA  // amarelo: maquina PARADA pela fonte principal (som ou Modbus)
+  EstadoMaquina estadoLed;
+  fontePrincipal(estadoLed);
+  digitalWrite(PIN_LED_PARADA, estadoLed == EstadoMaquina::PARADO);
+#endif
 }

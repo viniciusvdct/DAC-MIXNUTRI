@@ -27,7 +27,7 @@ Cada pasta tem o seu README com o passo a passo.
 
 ## O que o ESP32 faz
 
-- **Mede temperatura e umidade** com o sensor SHT31.
+- **Mede temperatura e umidade** com o sensor SHT31 (Wokwi) ou DHT11 (kit físico de bancada).
 - **Liga e desliga o desumidificador por relé com histerese:** liga acima de um limite (ex.: 55% UR) e só desliga abaixo de outro (ex.: 50% UR). Um tempo mínimo entre comutações protege o compressor. Se o sensor falhar, o desumidificador desliga.
 - **Percebe se a máquina parou pelo som:** se o ruído cai e continua baixo por alguns segundos, registra uma parada com início, fim e duração. Um silêncio rápido não conta.
 - **Conversa por MQTT:** envia medições a cada 5 s e eventos sempre que algo muda, todos com produto e lote. Recebe comandos AUTO/MANUAL, novos limites e o lote em produção, e responde a cada pedido dizendo se aceitou ou por que recusou.
@@ -36,37 +36,33 @@ Cada pasta tem o seu README com o passo a passo.
 
 ## Hardware do MVP
 
-Para simular no Wokwi não é preciso comprar nada. Para a montagem física escolhemos o caminho mais simples: **uma placa ESP32 clássica e módulos prontos**, sem placa de circuito própria e sem solda. Tudo vai na protoboard, alimentado pelo USB.
+Para simular no Wokwi não é preciso comprar nada. O kit físico de bancada usa **uma placa ESP32 clássica, sensores simples e LEDs**, sem placa de circuito própria e sem solda. Tudo vai na protoboard, alimentado pelo USB.
 
-É a mesma placa e são os mesmos pinos da simulação. Para gravar no kit real, o guia de montagem usa o script de preparação da rede, que cria `config_local.h` localmente. A gravação na placa física ainda não foi testada.
+O kit físico tem duas trocas em relação ao Wokwi: **DHT11** no lugar do SHT31 e **microfone P2 de eletreto** (com um pequeno circuito de polarização) no lugar do MAX9814. O firmware escolhe o sensor por [`hardware_fisico.h`](item2-firmware/firmware/hardware_fisico.h); a simulação continua com o SHT31.
 
 | Qtd. | Componente | Para quê |
 | --- | --- | --- |
-| 1 | Placa **ESP32 DevKit V1** (ESP32-WROOM-32, 4 MB) | Cérebro do kit: lê sensores, controla o relé, Wi-Fi. O LED azul da placa serve de indicador de rede |
-| 1 | Módulo **SHT31** (I²C, 3,3 V, endereço 0x44) | Temperatura e umidade. Os módulos prontos já trazem os resistores de pull-up |
-| 1 | Módulo de microfone **MAX9814** (saída analógica) | Nível de ruído da máquina |
-| 1 | Módulo **relé 1 canal** 5 V, **ativo em HIGH**, que aceite sinal de 3,3 V | Liga o desumidificador. Se o módulo for ativo em LOW, basta inverter `RELE_ON`/`RELE_OFF` no `sketch.ino` |
-| 1 | LED + resistor de 330 Ω | Carga de demonstração ligada pelo relé |
-| — | Protoboard, jumpers, cabo micro-USB **de dados** e fonte USB 5 V | Montagem, gravação e alimentação |
+| 1 | **ESP32-WROOM-32 DevKit**, 30 pinos | Lê sensores, controla o relé, Wi-Fi. O LED azul da placa indica a rede |
+| 1 | **DHT11** (4 pinos) + resistor de 10 kΩ | Temperatura e umidade (20–90 %UR, ±5 %UR) |
+| 1 | **Microfone P2 mono** + 2,2 kΩ, 2× 100 kΩ e capacitor de 1–10 µF | Ruído da máquina |
+| 1 | **Módulo relé 5 V** (relé JQC-3FF-S-Z) | Liga o desumidificador (na bancada, o LED verde) |
+| 3 | LEDs **verde**, **amarelo** e **vermelho** + resistores de 330 Ω | Desumidificador, máquina parada e umidade alta |
+| — | Protoboard, jumpers e cabo USB **de dados** | Montagem, gravação e alimentação |
 
-As ligações são iguais às do Wokwi:
+| Peça | Ligação no ESP32 |
+| --- | --- |
+| DHT11 | VCC 3V3, DATA **GPIO 4** (10 kΩ para 3V3), GND |
+| Microfone | Circuito de polarização → **GPIO 34** (entrada analógica, funciona junto com o Wi-Fi) |
+| Relé | VCC **VIN** (5 V), GND, IN **GPIO 26**; contatos: 3V3 → COM, NO → 330 Ω → LED verde → GND |
+| LED amarelo | **GPIO 25** → 330 Ω → LED → GND |
+| LED vermelho | **GPIO 27** → 330 Ω → LED → GND |
+| LED de rede | GPIO 2, o LED azul da placa |
 
-| Módulo | Pino do módulo | Pino do ESP32 |
-| --- | --- | --- |
-| SHT31 | VCC / GND | 3V3 / GND |
-| SHT31 | SDA / SCL | GPIO 21 / GPIO 22 |
-| MAX9814 | VDD / GND | 3V3 / GND |
-| MAX9814 | OUT | GPIO 34 (entrada analógica, funciona junto com o Wi-Fi) |
-| Relé | VCC / GND | VIN (5 V do USB) / GND |
-| Relé | IN | GPIO 26 |
-| LED de rede | — | GPIO 2, o LED azul da própria placa |
-| LED de carga | Nos contatos COM/NO do relé, com resistor | 3V3 → COM, NO → resistor → LED → GND |
-
-Além do kit, só é preciso uma rede Wi-Fi de **2,4 GHz** e o servidor MQTT das outras equipes. Não há cartão SD nem Ethernet: a fila de mensagens fica na Flash interna do ESP32.
+O passo a passo, com o circuito do microfone, o teste de bancada e a gravação pelo macOS/Linux, está no [guia de montagem física](GUIA_MONTAGEM_FISICA.md). Além do kit, é preciso uma rede Wi-Fi de **2,4 GHz** e o servidor MQTT. Não há cartão SD nem Ethernet: a fila de mensagens fica na Flash interna do ESP32.
 
 Na demonstração, o relé aciona apenas o LED. Ligar um desumidificador de verdade envolve rede elétrica: precisa de alguém habilitado, e o relé tem de ser escolhido conforme a potência do aparelho.
 
-No Wokwi, o SHT31 é um modelo parcial e o som é um sinal sintético. Eles servem para testar a lógica, mas não substituem os sensores reais, que ainda precisam ser testados na bancada.
+No Wokwi, o SHT31 é um modelo parcial e o som é um sinal sintético. O DHT11 e o microfone sem amplificador servem para a bancada; para a sala de encapsulamento, o SHT31 (±2 %UR) e um microfone com amplificador continuam recomendados.
 
 ## Como nossa parte conversa com as outras equipes
 
@@ -111,12 +107,12 @@ Para integrar:
 | **Item 2:** firmware do ESP32 | Pronto e testado no Wokwi com MQTT de verdade, inclusive queda de rede e reinício sem perder mensagens. Cliente Modbus testado por rede contra o simulador |
 | **Item 3:** kit de integração | Proposta da equipe 1 para a equipe 2 avaliar. Testado ao vivo com o firmware rodando no Wokwi, por uma ponte com o broker público |
 | **Itens 4 e 5:** dashboard e teste integrado | Com as equipes 2 e 3. O roteiro do item 5 (UR alta → relé → parada → alerta no Grafana) já roda em simulação com o kit da equipe 1 |
-| **Montagem física** | Componentes e ligações definidos, iguais aos do Wokwi; ainda não montada |
+| **Montagem física** | Kit de bancada definido (DHT11, microfone P2, relé e LEDs). ESP32 gravado e rodando o teste de bancada pelo macOS; sensores e relé ainda a ligar e validar |
 
 ## Limites
 
 - Os valores (55/50% UR, limiares de ruído, tempos) são demonstrativos. Os limites reais dependem dos parâmetros da empresa.
 - O ruído sai em **dBFS**, uma medida relativa ao conversor do ESP32, e não em dB SPL. Para virar decibéis de verdade, o microfone precisa ser calibrado na sala.
-- Detectar parada pelo som pode errar com ruído de outras máquinas ou de pessoas. Os limiares precisam ser ajustados com áudio real. O MAX9814 tem ganho automático, que muda a amplitude, e isso também entra nesse ajuste.
+- Detectar parada pelo som pode errar com ruído de outras máquinas ou de pessoas. Os limiares precisam ser ajustados com áudio real (o teste de bancada tem uma calibração). Microfones com ganho automático, como o MAX9814, mudam a amplitude, e isso também entra nesse ajuste.
 - Umidade alta perto de uma parada não prova que uma causa a outra. Investigar as quebras depende de semanas de dados reais de produção, lote e qualidade.
 - Senhas não são publicadas. O kit de integração traz só um modelo (`.env.exemplo`) para cada equipe preencher.

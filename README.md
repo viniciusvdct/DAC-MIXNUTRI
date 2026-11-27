@@ -21,7 +21,9 @@ Somos a **equipe 1, responsável pelo circuito eletrônico e pela programação 
 
 Cada pasta tem o seu README com o passo a passo.
 
-Para montar e ligar o kit físico ao banco e aos gráficos, siga o [guia de montagem física](GUIA_MONTAGEM_FISICA.md).
+- **Simulação completa** (Wokwi + Docker, sem hardware): [guia de simulação](GUIA_SIMULACAO.md).
+- **Kit físico** ligado ao banco e aos gráficos: [guia de montagem física](GUIA_MONTAGEM_FISICA.md).
+- **Andamento do trabalho** (o que foi feito, testado e o que falta): [PROGRESSO.md](PROGRESSO.md).
 
 ## O que o ESP32 faz
 

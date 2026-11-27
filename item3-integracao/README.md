@@ -17,6 +17,12 @@ docker compose up -d --build
 python3 -I ferramentas/reproduzir_log.py ../item2-firmware/exemplos/mqtt-exemplo.log ferramentas/cenario-boot-fecha-parada.log
 ```
 
+O passo a passo completo com o Wokwi está no [guia de simulação](../GUIA_SIMULACAO.md).
+
+Os volumes do Docker levam o nome de `COMPOSE_PROJECT_NAME` (padrão `mixnutri-item3`, no `.env`). Se
+outra cópia deste projeto já rodou no mesmo computador com outras senhas, o banco antigo é reaproveitado
+e o Node-RED falha com `password authentication failed`; troque o nome no `.env`.
+
 O Dockerfile do Node-RED usa `nodered/node-red:4.1.16-debian` (Node.js 20 nesta tag).
 Em 25/11/2026, a variante Alpine `4.1.16-22-minimal` falhou com código 139
 até em `node --version` durante o build no Docker Desktop deste computador,
